@@ -1,0 +1,15 @@
+[".config/zsh/.zprezto"]
+type = "git-repo"
+url = "https://github.com/sorin-ionescu/prezto.git"
+refreshPeriod = "168h"
+clone.args = ["--recursive"]
+
+[".anyenv"]
+type = "git-repo"
+url = "https://github.com/anyenv/anyenv.git"
+refreshPeriod = "168h"
+
+[".anyenv/plugins/anyenv-update"]
+type = "git-repo"
+url = "https://github.com/znz/anyenv-update.git"
+refreshPeriod = "168h"
