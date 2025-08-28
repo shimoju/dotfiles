@@ -1,0 +1,57 @@
+[user]
+	name = Hiroshi Shimoju
+	email = hiroshi.shimoju@gmail.com
+[color]
+	ui = true
+[core]
+	autocrlf = input
+	excludesfile = ~/.gitignore_global
+[merge]
+	ff = false
+[rebase]
+	autosquash = true
+	autostash = true
+[fetch]
+	prune = true
+[pull]
+	rebase = true
+[push]
+	default = simple
+[alias]
+	# status
+	s = status --branch --short
+	st = status
+	# commit
+	ad = add
+	c = commit
+	ca = commit -a
+	cam = commit -a --amend
+	ce = commit --allow-empty
+	# diff
+	d = diff
+	ds = diff --staged
+	# branch
+	b = branch
+	ba = branch -va
+	co = checkout
+	cob = checkout -b
+	cot = checkout --track
+	com = checkout master
+	# remote
+	ft = fetch
+	pl = pull
+	ps = push
+	# log
+	l = log --decorate
+	lp = log --decorate --stat --patch
+	lo = log --oneline
+	# rebase
+	rb = rebase
+	rbm = rebase master
+	rbi = rebase -i
+	rbc = rebase --continue
+	rba = rebase --abort
+[credential]
+	helper = osxkeychain
+[ghq]
+	root = ~/local/src
