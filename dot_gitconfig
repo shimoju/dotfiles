@@ -54,4 +54,4 @@
 [credential]
 	helper = osxkeychain
 [ghq]
-	root = ~/local/src
+	root = ~/dev/src
