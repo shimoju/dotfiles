@@ -13,3 +13,18 @@ refreshPeriod = "168h"
 type = "git-repo"
 url = "https://github.com/znz/anyenv-update.git"
 refreshPeriod = "168h"
+
+[".anyenv/envs/rbenv"]
+type = "git-repo"
+url = "https://github.com/rbenv/rbenv.git"
+refreshPeriod = "168h"
+
+[".anyenv/envs/rbenv/plugins/ruby-build"]
+type = "git-repo"
+url = "https://github.com/rbenv/ruby-build.git"
+refreshPeriod = "168h"
+
+[".anyenv/envs/rbenv/plugins/rbenv-default-gems"]
+type = "git-repo"
+url = "https://github.com/rbenv/rbenv-default-gems.git"
+refreshPeriod = "168h"
