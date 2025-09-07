@@ -43,3 +43,8 @@ refreshPeriod = "168h"
 type = "git-repo"
 url = "https://github.com/nodenv/nodenv-vars.git"
 refreshPeriod = "168h"
+
+[".anyenv/envs/pyenv"]
+type = "git-repo"
+url = "https://github.com/pyenv/pyenv.git"
+refreshPeriod = "168h"
