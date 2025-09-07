@@ -28,3 +28,18 @@ refreshPeriod = "168h"
 type = "git-repo"
 url = "https://github.com/rbenv/rbenv-default-gems.git"
 refreshPeriod = "168h"
+
+[".anyenv/envs/nodenv"]
+type = "git-repo"
+url = "https://github.com/nodenv/nodenv.git"
+refreshPeriod = "168h"
+
+[".anyenv/envs/nodenv/plugins/node-build"]
+type = "git-repo"
+url = "https://github.com/nodenv/node-build.git"
+refreshPeriod = "168h"
+
+[".anyenv/envs/nodenv/plugins/nodenv-vars"]
+type = "git-repo"
+url = "https://github.com/nodenv/nodenv-vars.git"
+refreshPeriod = "168h"
