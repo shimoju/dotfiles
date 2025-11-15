@@ -8,3 +8,7 @@ alias dcu='docker compose up -d --remove-orphans'
 alias dce='docker compose exec'
 alias dcr='docker compose run --rm'
 alias dcl='docker compose logs -f --tail=100'
+
+if (( $+commands[colima] )); then
+  export DOCKER_HOST="unix://$HOME/.colima/docker.sock"
+fi
