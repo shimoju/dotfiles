@@ -51,6 +51,10 @@
 	rbi = rebase -i
 	rbc = rebase --continue
 	rba = rebase --abort
+	# cherry-pick
+	cp = cherry-pick
+	# worktree
+	wt = worktree
 [credential]
 	helper = osxkeychain
 [ghq]
