@@ -20,7 +20,6 @@
 [alias]
 	# status
 	s = status --branch --short
-	st = status
 	# commit
 	ad = add
 	c = commit
@@ -51,6 +50,10 @@
 	rbi = rebase -i
 	rbc = rebase --continue
 	rba = rebase --abort
+	# stash
+	st = stash
+	sl = stash list
+	sp = stash pop
 	# cherry-pick
 	cp = cherry-pick
 	# worktree
