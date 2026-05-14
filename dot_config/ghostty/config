@@ -1,0 +1,6 @@
+background-opacity = 0.8
+copy-on-select = clipboard
+font-family = UDEV Gothic 35NF
+font-size = 14
+font-thicken = true
+theme = Catppuccin Mocha
