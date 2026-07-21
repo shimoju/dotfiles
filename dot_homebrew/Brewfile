@@ -110,6 +110,8 @@ cask "karabiner-elements"
 cask "notion"
 # Move and resize windows using keyboard shortcuts or snap areas
 cask "rectangle"
+# Tool to reverse the direction of scrolling
+cask "scroll-reverser"
 # Team communication and collaboration software
 cask "slack"
 # Open-source code editor
