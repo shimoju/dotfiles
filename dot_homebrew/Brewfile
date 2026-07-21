@@ -1,62 +1,120 @@
-tap "coderabbitai/tap"
+tap "coderabbitai/tap", trusted: true
+# Download with resuming and segmented downloading
 brew "aria2"
+# Official Amazon AWS command-line interface
 brew "awscli"
+# Manage your dotfiles across multiple diverse machines, securely
 brew "chezmoi"
+# Container runtimes on MacOS (and Linux) with minimal setup
 brew "colima"
+# Color-highlighted diff(1) output
 brew "colordiff"
+# Top-like interface for container metrics
 brew "ctop"
+# Get a file from an HTTP, HTTPS or FTP server
 brew "curl"
+# Load/unload environment variables based on $PWD
 brew "direnv"
+# Pack, ship and run any application as a lightweight container
 brew "docker"
+# Isolated development environments using Docker
 brew "docker-compose"
+# Platform keystore credential helper for Docker
 brew "docker-credential-helper"
+# Simple, fast and user-friendly alternative to find
 brew "fd"
+# Command-line fuzzy finder written in Go
 brew "fzf"
+# GitHub command-line tool
 brew "gh"
+# Remote repository management made easy
 brew "ghq"
+# Distributed revision control system
 brew "git"
+# Open source programming language to build simple/reliable/efficient software
 brew "go"
+# Perceptual JPEG encoder
 brew "guetzli"
+# Configurable static site generator
 brew "hugo"
+# Tools and libraries to manipulate images in select formats
 brew "imagemagick"
+# Calculate various network masks, etc. from a given IP address
 brew "ipcalc"
+# Lightweight and flexible command-line JSON processor
 brew "jq"
+# Tool that can switch between kubectl contexts easily and create aliases
 brew "kubectx"
+# Kubernetes command-line interface
 brew "kubernetes-cli"
+# YAML Parser
 brew "libyaml"
+# Ambitious Vim-fork focused on extensibility and agility
 brew "neovim"
+# OpenBSD freely-licensed SSH connectivity tools
 brew "openssh"
+# PNG image optimizing utility
 brew "pngquant"
+# Search tool like grep and The Silver Searcher
 brew "ripgrep"
+# Rust toolchain installer
 brew "rustup"
+# Cross-shell prompt for astronauts
 brew "starship"
+# Tail multiple Kubernetes pods & their containers
 brew "stern"
+# Terminal multiplexer
 brew "tmux"
+# Display directories as trees (with optional color/HTML output)
 brew "tree"
+# Image processing library
 brew "vips"
+# Internet file retriever
 brew "wget"
+# Git worktree manager with editor and AI tool integration
 brew "coderabbitai/tap/git-gtr"
+# Password manager that keeps all passwords secure behind one password
 cask "1password"
+# Command-line interface for 1Password
 cask "1password-cli"
+# OpenAI's official ChatGPT desktop app
+cask "chatgpt"
+# Anthropic's official Claude AI desktop app
+cask "claude"
+# Ghostty-based terminal with vertical tabs and notifications for AI coding agents
 cask "cmux"
+# Voice and text chat software
 cask "discord"
+# Web browser
 cask "firefox"
 cask "font-hackgen"
 cask "font-hackgen-nerd"
 cask "font-noto-sans-cjk-jp"
 cask "font-udev-gothic"
 cask "font-udev-gothic-nf"
+# Set of tools to manage resources and applications hosted on Google Cloud
 cask "gcloud-cli"
+# Web browser
 cask "google-chrome"
+# Client for the Google Drive storage service
 cask "google-drive"
+# Japanese input software
 cask "google-japanese-ime"
+# Terminal emulator as alternative to Apple's Terminal app
 cask "iterm2"
+# Enables an integrated web browser in iTerm2
 cask "itermbrowserplugin"
+# Keyboard customiser
 cask "karabiner-elements"
+# App to write, plan, collaborate, and get organised
 cask "notion"
+# Move and resize windows using keyboard shortcuts or snap areas
 cask "rectangle"
+# Team communication and collaboration software
 cask "slack"
+# Open-source code editor
 cask "visual-studio-code"
+# Video communication and virtual meeting platform
 cask "zoom"
 vscode "anthropic.claude-code"
 vscode "apollographql.vscode-apollo"
