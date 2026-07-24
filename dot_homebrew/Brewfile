@@ -33,8 +33,8 @@ brew "ghq"
 brew "git"
 # Open source programming language to build simple/reliable/efficient software
 brew "go"
-# Perceptual JPEG encoder
-brew "guetzli"
+# Agent multiplexer that lives in your terminal
+brew "herdr"
 # Configurable static site generator
 brew "hugo"
 # Tools and libraries to manipulate images in select formats
@@ -89,11 +89,17 @@ cask "discord"
 cask "firefox"
 cask "font-hackgen"
 cask "font-hackgen-nerd"
+cask "font-moralerspace"
+cask "font-moralerspace-hw"
+cask "font-moralerspace-hw-jpdoc"
+cask "font-moralerspace-jpdoc"
 cask "font-noto-sans-cjk-jp"
 cask "font-udev-gothic"
 cask "font-udev-gothic-nf"
 # Set of tools to manage resources and applications hosted on Google Cloud
 cask "gcloud-cli"
+# Terminal emulator that uses platform-native UI and GPU acceleration
+cask "ghostty"
 # Web browser
 cask "google-chrome"
 # Client for the Google Drive storage service
