@@ -3,4 +3,8 @@ copy-on-select = clipboard
 font-family = Moralerspace Argon
 font-size = 14
 font-thicken = true
+keybind = global:alt+space=toggle_quick_terminal
+macos-titlebar-style = tabs
+mouse-hide-while-typing = true
 theme = Catppuccin Mocha
+window-save-state = always
