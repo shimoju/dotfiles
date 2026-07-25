@@ -20,6 +20,8 @@
 [alias]
 	# status
 	s = status --branch --short
+	# show
+	sh = show
 	# commit
 	ad = add
 	c = commit
@@ -58,6 +60,10 @@
 	cp = cherry-pick
 	# worktree
 	wt = worktree
+	# hunk
+	hd = -c core.pager=\"hunk pager\" diff
+	hs = -c core.pager=\"hunk pager\" diff --staged
+	hsh = -c core.pager=\"hunk pager\" show
 [credential]
 	helper = osxkeychain
 [ghq]

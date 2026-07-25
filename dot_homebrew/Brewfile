@@ -37,6 +37,8 @@ brew "go"
 brew "herdr"
 # Configurable static site generator
 brew "hugo"
+# Review-first terminal diff viewer for agent-authored changesets
+brew "hunk"
 # Tools and libraries to manipulate images in select formats
 brew "imagemagick"
 # Calculate various network masks, etc. from a given IP address
