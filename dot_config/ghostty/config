@@ -4,6 +4,9 @@ font-family = Moralerspace Argon
 font-size = 14
 font-thicken = true
 keybind = global:alt+space=toggle_quick_terminal
+# Workaround: https://github.com/ghostty-org/ghostty/issues/10749
+keybind = super+c=copy_to_clipboard
+keybind = super+v=paste_from_clipboard
 macos-titlebar-style = tabs
 mouse-hide-while-typing = true
 theme = Catppuccin Mocha
