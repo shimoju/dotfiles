@@ -1,9 +1,8 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
-{{ if eq .chezmoi.os "darwin" }}
-
+{{- if eq .chezmoi.os "darwin" }}
 read -p 'Install homebrew:'
 
 if [[ ! -x "/opt/homebrew/bin/brew" ]]; then
@@ -11,5 +10,4 @@ if [[ ! -x "/opt/homebrew/bin/brew" ]]; then
 fi
 
 brew bundle --file="$HOME/.homebrew/Brewfile"
-
-{{ end }}
+{{- end }}

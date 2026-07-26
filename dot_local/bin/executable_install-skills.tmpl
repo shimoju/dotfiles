@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# https://github.com/ogulcancelik/herdr
+npx skills@latest add ogulcancelik/herdr -s herdr -a claude-code -a codex -g -y
+
+# https://github.com/mattpocock/skills
+npx skills@latest add mattpocock/skills -s grill-me -s grilling -s grill-with-docs -s domain-modeling -a claude-code -a codex -g -y
+
+# https://github.com/modem-dev/hunk
+if command -v hunk >/dev/null; then
+  {{- if eq .chezmoi.os "darwin" }}
+  ln -sf "$(brew --prefix)/opt/hunk/libexec/skills/hunk-review" "$HOME/.agents/skills/hunk-review"
+  ln -sf "../../.agents/skills/hunk-review" "$HOME/.claude/skills/hunk-review"
+  {{- end }}
+fi

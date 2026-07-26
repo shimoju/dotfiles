@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 # Claude Code
 if ! command -v claude >/dev/null; then
