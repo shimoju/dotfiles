@@ -6,8 +6,12 @@
 [core]
 	autocrlf = input
 	excludesfile = ~/.gitignore_global
+	pager = delta
+[interactive]
+	diffFilter = delta --color-only
 [merge]
 	ff = false
+	conflictStyle = zdiff3
 [rebase]
 	autosquash = true
 	autostash = true
@@ -68,3 +72,7 @@
 	helper = osxkeychain
 [ghq]
 	root = ~/dev/src
+[delta]
+	navigate = true
+	syntax-theme = Catppuccin Mocha
+	tabs = 2

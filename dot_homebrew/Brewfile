@@ -3,6 +3,8 @@ tap "coderabbitai/tap", trusted: true
 brew "aria2"
 # Official Amazon AWS command-line interface
 brew "awscli"
+# Clone of cat(1) with syntax highlighting and Git integration
+brew "bat"
 # Manage your dotfiles across multiple diverse machines, securely
 brew "chezmoi"
 # Container runtimes on MacOS (and Linux) with minimal setup
@@ -31,6 +33,10 @@ brew "gh"
 brew "ghq"
 # Distributed revision control system
 brew "git"
+# Syntax-highlighting pager for git and diff output
+brew "git-delta"
+# Render markdown on the CLI
+brew "glow"
 # Open source programming language to build simple/reliable/efficient software
 brew "go"
 # Agent multiplexer that lives in your terminal
