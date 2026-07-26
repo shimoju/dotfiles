@@ -16,7 +16,8 @@ fi
 
 # herdr
 if command -v herdr >/dev/null; then
-  echo 'Install herdr integration:'
+  echo 'Install herdr integrations and plugins:'
   herdr integration install claude
   herdr integration install codex
+  herdr plugin install smarzban/herdr-file-viewer -y
 fi

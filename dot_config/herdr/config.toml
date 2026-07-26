@@ -16,6 +16,18 @@ swap_pane_down = ["prefix+shift+j", "prefix+shift+down"]
 swap_pane_up = ["prefix+shift+k", "prefix+shift+up"]
 swap_pane_right = ["prefix+shift+l", "prefix+shift+right"]
 
+[[keys.command]]
+key = "prefix+f"
+type = "shell"
+command = "herdr plugin action invoke open-file-viewer --plugin herdr-file-viewer"
+description = "Open file viewer in a split pane"
+
+[[keys.command]]
+key = "prefix+shift+f"
+type = "shell"
+command = "herdr plugin action invoke open-file-viewer-tab --plugin herdr-file-viewer"
+description = "Open file viewer in a new tab"
+
 [ui]
 agent_panel_sort = "spaces"
 mouse_scroll_lines = 1
