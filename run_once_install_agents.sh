@@ -11,7 +11,7 @@ fi
 # Codex
 if ! command -v codex >/dev/null; then
   echo 'Install Codex:'
-  curl -fsSL https://chatgpt.com/codex/install.sh | sh
+  curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
 fi
 
 # herdr
