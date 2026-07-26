@@ -89,8 +89,6 @@ cask "cmux"
 cask "discord"
 # Web browser
 cask "firefox"
-cask "font-hackgen"
-cask "font-hackgen-nerd"
 cask "font-moralerspace"
 cask "font-moralerspace-hw"
 cask "font-moralerspace-hw-jpdoc"
@@ -108,10 +106,6 @@ cask "google-chrome"
 cask "google-drive"
 # Japanese input software
 cask "google-japanese-ime"
-# Terminal emulator as alternative to Apple's Terminal app
-cask "iterm2"
-# Enables an integrated web browser in iTerm2
-cask "itermbrowserplugin"
 # Keyboard customiser
 cask "karabiner-elements"
 # App to write, plan, collaborate, and get organised
