@@ -1,12 +1,12 @@
 if [[ -x "$HOME/.anyenv/bin/anyenv" ]]; then
-  export PATH="$HOME/.anyenv/bin:$PATH"
+  path=("$HOME/.anyenv/bin" $path)
   eval "$(anyenv init -)"
 fi
 
 if [[ -x "$HOME/.anyenv/envs/rbenv/bin/rbenv" ]]; then
-  FPATH="$HOME/.anyenv/envs/rbenv/completions:$FPATH"
+  fpath=("$HOME/.anyenv/envs/rbenv/completions" $fpath)
 fi
 
 if [[ -x "$HOME/.anyenv/envs/nodenv/bin/nodenv" ]]; then
-  FPATH="$HOME/.anyenv/envs/nodenv/completions:$FPATH"
+  fpath=("$HOME/.anyenv/envs/nodenv/completions" $fpath)
 fi
