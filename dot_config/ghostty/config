@@ -1,6 +1,6 @@
 background-opacity = 0.9
 copy-on-select = clipboard
-font-family = Moralerspace Argon
+font-family = Moralerspace Argon HW
 font-size = 14
 font-thicken = true
 keybind = global:alt+space=toggle_quick_terminal
