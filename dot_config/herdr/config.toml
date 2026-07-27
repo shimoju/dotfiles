@@ -34,4 +34,4 @@ mouse_scroll_lines = 1
 prompt_new_tab_name = false
 
 [ui.toast]
-delivery = "system"
+delivery = "terminal"
