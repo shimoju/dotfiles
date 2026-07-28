@@ -20,4 +20,5 @@ if command -v herdr >/dev/null; then
   herdr integration install claude
   herdr integration install codex
   herdr plugin install smarzban/herdr-file-viewer -y
+  herdr plugin install yuk1ty/herdr-spreader -y
 fi
