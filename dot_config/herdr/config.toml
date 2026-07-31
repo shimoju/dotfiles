@@ -5,12 +5,12 @@ name = "catppuccin"
 
 [keys]
 prefix = "ctrl+z"
-previous_workspace = "ctrl+shift+["
-next_workspace = "ctrl+shift+]"
-switch_workspace = "ctrl+shift+1..9"
-previous_agent = "ctrl+["
-next_agent = "ctrl+]"
-focus_agent = "ctrl+1..9"
+previous_workspace = "ctrl+["
+next_workspace = "ctrl+]"
+switch_workspace = "ctrl+1..9"
+previous_agent = "ctrl+shift+["
+next_agent = "ctrl+shift+]"
+focus_agent = "ctrl+shift+1..9"
 focus_pane_left = ["prefix+h", "prefix+left"]
 focus_pane_down = ["prefix+j", "prefix+down"]
 focus_pane_up = ["prefix+k", "prefix+up"]
