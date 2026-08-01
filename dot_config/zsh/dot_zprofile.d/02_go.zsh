@@ -1,3 +1,3 @@
 (( ! $+commands[go] )) && return 1
 
-export GOPATH="$HOME/dev"
+export GOBIN="$HOME/.local/bin"
