@@ -15,9 +15,6 @@ if [[ -z "$PAGER" ]]; then
 fi
 
 # Paths
-# Ensure path arrays do not contain duplicates.
-typeset -gU fpath path
-
 # Set the list of directories that Zsh searches for programs.
 path=(
   "$HOME/.local/bin"(N)

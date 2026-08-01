@@ -1,6 +1,7 @@
 (( ! $+commands[anyenv] )) && return 1
 
 eval "$(anyenv init -)"
+path=($path)
 
 if [[ -x "$HOME/.anyenv/envs/rbenv/bin/rbenv" ]]; then
   fpath=("$HOME/.anyenv/envs/rbenv/completions" $fpath)

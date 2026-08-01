@@ -1,1 +1,2 @@
 export ZDOTDIR="$HOME/.config/zsh"
+typeset -gU fpath path
