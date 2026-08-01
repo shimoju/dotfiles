@@ -14,6 +14,9 @@ unsetopt BG_NICE
 unsetopt HUP
 unsetopt CHECK_JOBS
 
+# Allow ZLE to receive Ctrl-S and Ctrl-Q instead of using terminal flow control.
+[[ -r ${TTY:-} && -w ${TTY:-} && $+commands[stty] == 1 ]] && stty -ixon <"$TTY" >"$TTY"
+
 HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
 HISTSIZE=10000
 SAVEHIST=10000
@@ -41,11 +44,29 @@ setopt EXTENDED_GLOB
 unsetopt CLOBBER
 
 # Line editor
+WORDCHARS='*?_-.[]~&;!#$%^(){}<>'
 bindkey -e
 
 autoload -Uz edit-command-line
 zle -N edit-command-line
 bindkey -M emacs '^X^E' edit-command-line
+
+zmodload zsh/terminfo
+if [[ -n "$terminfo[kcbt]" ]]; then
+  bindkey -M emacs "$terminfo[kcbt]" reverse-menu-complete
+fi
+bindkey -M emacs '^Q' push-line-or-edit
+
+autoload -Uz bracketed-paste-magic
+zle -N bracketed-paste bracketed-paste-magic
+zstyle ':bracketed-paste-magic' paste-finish quote-paste
+zstyle -e ':bracketed-paste-magic:finish' quote-style '
+  if [[ $PASTED == (http|https|ftp|ftps|file|ssh|sftp)://* || $PASTED == magnet:* ]]; then
+    reply=(qq)
+  else
+    reply=(none)
+  fi
+'
 
 # Plugin configuration
 typeset -ga ZSH_HIGHLIGHT_HIGHLIGHTERS=(
@@ -69,9 +90,12 @@ if [[ -r "$antidote_home/antidote.zsh" ]]; then
 fi
 unset antidote_home
 
+# History key bindings
+bindkey -M emacs '^S' history-incremental-pattern-search-forward
+bindkey -M emacs ' ' magic-space
+
 # These widgets only exist after the plugin has loaded successfully.
 if (( ${+widgets[history-substring-search-up]} )); then
-  zmodload zsh/terminfo
   if [[ -n "$terminfo[kcuu1]" ]]; then
     bindkey -M emacs "$terminfo[kcuu1]" history-substring-search-up
   fi
