@@ -46,6 +46,8 @@ unsetopt CLOBBER
 # Line editor
 WORDCHARS='*?_-.[]~&;!#$%^(){}<>'
 bindkey -e
+# fzf handles history search instead of Ctrl-S's default forward search.
+bindkey -M emacs -r '^S'
 
 autoload -Uz edit-command-line
 zle -N edit-command-line
