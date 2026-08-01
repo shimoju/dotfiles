@@ -14,7 +14,7 @@ unsetopt BG_NICE
 unsetopt HUP
 unsetopt CHECK_JOBS
 
-# Allow ZLE to receive Ctrl-S and Ctrl-Q instead of using terminal flow control.
+# Allow ZLE to receive Ctrl-Q instead of using terminal flow control.
 [[ -r ${TTY:-} && -w ${TTY:-} && $+commands[stty] == 1 ]] && stty -ixon <"$TTY" >"$TTY"
 
 HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
@@ -91,7 +91,6 @@ fi
 unset antidote_home
 
 # History key bindings
-bindkey -M emacs '^S' history-incremental-pattern-search-forward
 bindkey -M emacs ' ' magic-space
 
 # These widgets only exist after the plugin has loaded successfully.
