@@ -2,15 +2,102 @@
 # Executes commands at the start of an interactive session.
 #
 
-# Source Prezto.
-if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
-  source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
+# Zsh options
+setopt COMBINING_CHARS
+setopt INTERACTIVE_COMMENTS
+setopt RC_QUOTES
+setopt LONG_LIST_JOBS
+setopt AUTO_RESUME
+setopt NOTIFY
+unsetopt MAIL_WARNING
+unsetopt BG_NICE
+unsetopt HUP
+unsetopt CHECK_JOBS
+
+HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
+HISTSIZE=10000
+SAVEHIST=10000
+
+setopt BANG_HIST
+setopt EXTENDED_HISTORY
+setopt SHARE_HISTORY
+setopt HIST_EXPIRE_DUPS_FIRST
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_FIND_NO_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_VERIFY
+setopt HIST_BEEP
+
+setopt AUTO_CD
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt PUSHD_SILENT
+setopt PUSHD_TO_HOME
+setopt CDABLE_VARS
+setopt MULTIOS
+setopt EXTENDED_GLOB
+unsetopt CLOBBER
+
+# ez-compinit initializes the completion system itself.
+setopt COMPLETE_IN_WORD
+setopt ALWAYS_TO_END
+setopt PATH_DIRS
+setopt AUTO_MENU
+setopt AUTO_LIST
+setopt AUTO_PARAM_SLASH
+unsetopt MENU_COMPLETE
+unsetopt FLOW_CONTROL
+
+# Line editor
+bindkey -e
+
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey -M emacs '^X^E' edit-command-line
+
+unalias run-help 2>/dev/null
+autoload -Uz run-help run-help-git run-help-ip run-help-openssl run-help-sudo
+alias help=run-help
+
+# Plugin configuration
+typeset -ga ZSH_HIGHLIGHT_HIGHLIGHTERS=(
+  main
+  brackets
+  pattern
+  line
+  cursor
+  root
+)
+
+zstyle ':plugin:ez-compinit' compstyle prez
+# Cache the completion dump for 20 hours and compile it when changed.
+zstyle ':plugin:ez-compinit' use-cache yes
+
+# Plugins
+antidote_home="${ZDOTDIR:-$HOME}/.antidote"
+if [[ -r "$antidote_home/antidote.zsh" ]]; then
+  source "$antidote_home/antidote.zsh"
+  antidote load "${ZDOTDIR:-$HOME}/.zsh_plugins.txt"
+fi
+unset antidote_home
+
+# These widgets only exist after the plugin has loaded successfully.
+if (( ${+widgets[history-substring-search-up]} )); then
+  zmodload zsh/terminfo
+  if [[ -n "$terminfo[kcuu1]" ]]; then
+    bindkey -M emacs "$terminfo[kcuu1]" history-substring-search-up
+  fi
+  if [[ -n "$terminfo[kcud1]" ]]; then
+    bindkey -M emacs "$terminfo[kcud1]" history-substring-search-down
+  fi
+  bindkey -M emacs '^P' history-substring-search-up
+  bindkey -M emacs '^N' history-substring-search-down
 fi
 
-#
 # Source .zshrc.d
-#
-
-for file in "${ZDOTDIR:-$HOME}/.zshrc.d"/**/*.zsh; do
+for file in "${ZDOTDIR:-$HOME}/.zshrc.d"/**/*.zsh(.N); do
   source "$file"
 done
+unset file
