@@ -40,16 +40,6 @@ setopt MULTIOS
 setopt EXTENDED_GLOB
 unsetopt CLOBBER
 
-# ez-compinit initializes the completion system itself.
-setopt COMPLETE_IN_WORD
-setopt ALWAYS_TO_END
-setopt PATH_DIRS
-setopt AUTO_MENU
-setopt AUTO_LIST
-setopt AUTO_PARAM_SLASH
-unsetopt MENU_COMPLETE
-unsetopt FLOW_CONTROL
-
 # Line editor
 bindkey -e
 
