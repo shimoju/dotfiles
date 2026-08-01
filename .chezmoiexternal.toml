@@ -4,6 +4,11 @@ url = "https://github.com/sorin-ionescu/prezto.git"
 refreshPeriod = "168h"
 clone.args = ["--recursive"]
 
+[".config/zsh/.antidote"]
+type = "git-repo"
+url = "https://github.com/mattmc3/antidote.git"
+refreshPeriod = "168h"
+
 [".anyenv"]
 type = "git-repo"
 url = "https://github.com/anyenv/anyenv.git"
