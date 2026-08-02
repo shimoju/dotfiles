@@ -74,11 +74,14 @@ alias l='ls'
 alias ll='ls -lh'
 alias la='ls -lhA'
 
-export GREP_COLOR=${GREP_COLOR:-'37;45'}
-export GREP_COLORS=${GREP_COLORS:-"mt=$GREP_COLOR"}
+export GREP_COLOR='1;30;43'
+export GREP_COLORS="mt=$GREP_COLOR"
 alias grep='grep --color=auto'
 
 # Plugin configuration
+HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='bg=yellow,fg=black,bold'
+HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=red,bold,underline'
+
 typeset -ga ZSH_HIGHLIGHT_HIGHLIGHTERS=(
   main
   brackets
