@@ -79,6 +79,8 @@ brew "tree"
 brew "vips"
 # Internet file retriever
 brew "wget"
+# Shell extension to navigate your filesystem faster
+brew "zoxide"
 # Git worktree manager with editor and AI tool integration
 brew "coderabbitai/tap/git-gtr"
 # Password manager that keeps all passwords secure behind one password
