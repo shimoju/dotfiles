@@ -1,7 +1,12 @@
 update() {
   brew update && brew upgrade --no-ask
   brew cleanup
-  anyenv update
+
+  if (( $+commands[mise] )); then
+    mise self-update
+    mise -C "$HOME" upgrade
+  fi
+
   rustup update
   antidote update
 
