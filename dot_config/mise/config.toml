@@ -1,6 +1,7 @@
 [tools]
 go = "latest"
 node = "lts"
+pnpm = "latest"
 python = "latest"
 
 [tools.ruby]
