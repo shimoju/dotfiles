@@ -39,8 +39,6 @@ brew "git"
 brew "git-delta"
 # Render markdown on the CLI
 brew "glow"
-# Open source programming language to build simple/reliable/efficient software
-brew "go"
 # Agent multiplexer that lives in your terminal
 brew "herdr"
 # Configurable static site generator
