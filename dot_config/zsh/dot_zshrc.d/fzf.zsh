@@ -14,4 +14,4 @@ _ghq_fzf_cd_widget() {
   zle reset-prompt
 }
 zle -N _ghq_fzf_cd_widget
-bindkey -M emacs '^S' _ghq_fzf_cd_widget
+bindkey -M emacs '^O' _ghq_fzf_cd_widget
