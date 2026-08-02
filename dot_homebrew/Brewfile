@@ -67,8 +67,6 @@ brew "openssh"
 brew "pngquant"
 # Search tool like grep and The Silver Searcher
 brew "ripgrep"
-# Rust toolchain installer
-brew "rustup"
 # Cross-shell prompt for astronauts
 brew "starship"
 # Tail multiple Kubernetes pods & their containers

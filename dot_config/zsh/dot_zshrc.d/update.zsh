@@ -7,7 +7,6 @@ update() {
     mise -C "$HOME" upgrade
   fi
 
-  rustup update
   antidote update
 
   if (( $+commands[claude] )); then

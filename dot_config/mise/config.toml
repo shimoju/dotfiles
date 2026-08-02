@@ -6,11 +6,15 @@ python = "latest"
 version = "latest"
 postinstall = "gem install foreman rails rubocop ruby-lsp ruby-lsp-rails"
 
+[tools.rust]
+version = "stable"
+profile = "default"
+
 [settings]
 auto_install = true
 not_found_auto_install = true
 github_attestations = true
-idiomatic_version_file_enable_tools = ["node", "python", "ruby"]
+idiomatic_version_file_enable_tools = ["node", "python", "ruby", "rust"]
 
 [settings.node]
 compile = false
