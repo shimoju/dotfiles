@@ -15,7 +15,6 @@ if [[ -z "$PAGER" ]]; then
 fi
 
 # Paths
-# Set the list of directories that Zsh searches for programs.
 path=(
   "$HOME/.local/bin"(N)
   /usr/local/{,s}bin(N)
@@ -24,7 +23,6 @@ path=(
 
 # Less
 # Mouse-wheel scrolling has been disabled by -X (disable screen clearing).
-# Remove -X to enable it.
 if [[ -z "$LESS" ]]; then
   export LESS='-g -i -M -R -S -w -X -z-4'
 fi

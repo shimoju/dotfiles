@@ -1,7 +1,3 @@
-#
-# Executes commands at the start of an interactive session.
-#
-
 # Zsh options
 setopt COMBINING_CHARS
 setopt INTERACTIVE_COMMENTS
