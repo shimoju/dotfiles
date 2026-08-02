@@ -1,7 +1,10 @@
 [tools]
 node = "lts"
 python = "latest"
-ruby = "latest"
+
+[tools.ruby]
+version = "latest"
+postinstall = "gem install foreman rails rubocop ruby-lsp ruby-lsp-rails"
 
 [settings]
 auto_install = true
