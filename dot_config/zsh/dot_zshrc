@@ -59,6 +59,25 @@ zstyle -e ':bracketed-paste-magic:finish' quote-style '
   fi
 '
 
+# Aliases
+_ls_version="$(command ls --version 2>&1)"
+if [[ ${(@M)${(f)_ls_version}:#*(GNU|lsd|uutils) *} ]]; then
+  export LS_COLORS=${LS_COLORS:-'di=34:ln=35:so=32:pi=33:ex=31:bd=36;01:cd=33;01:su=31;40;07:sg=36;40;07:tw=32;40;07:ow=33;40;07:'}
+  alias ls='ls --color=auto'
+else
+  export LSCOLORS=${LSCOLORS:-'exfxcxdxbxGxDxabagacad'}
+  alias ls='ls -G'
+fi
+unset _ls_version
+
+alias l='ls'
+alias ll='ls -lh'
+alias la='ls -lhA'
+
+export GREP_COLOR=${GREP_COLOR:-'37;45'}
+export GREP_COLORS=${GREP_COLORS:-"mt=$GREP_COLOR"}
+alias grep='grep --color=auto'
+
 # Plugin configuration
 typeset -ga ZSH_HIGHLIGHT_HIGHLIGHTERS=(
   main
@@ -97,31 +116,6 @@ if (( ${+widgets[history-substring-search-up]} )); then
   bindkey -M emacs '^P' history-substring-search-up
   bindkey -M emacs '^N' history-substring-search-down
 fi
-
-# Aliases
-_ls_version="$(command ls --version 2>&1)"
-if [[ ${(@M)${(f)_ls_version}:#*(GNU|lsd|uutils) *} ]]; then
-  alias ls='ls --color=auto'
-  if (( ! $+LS_COLORS )); then
-    if (( $+commands[dircolors] )); then
-      eval "$(dircolors --sh $HOME/.dir_colors(N))"
-    else
-      export LS_COLORS='di=34:ln=35:so=32:pi=33:ex=31:bd=36;01:cd=33;01:su=31;40;07:sg=36;40;07:tw=32;40;07:ow=33;40;07:'
-    fi
-  fi
-else
-  export LSCOLORS=${LSCOLORS:-'exfxcxdxbxGxDxabagacad'}
-  alias ls='ls -G'
-fi
-unset _ls_version
-
-alias l='ls'
-alias ll='ls -lh'
-alias la='ls -lhA'
-
-export GREP_COLOR=${GREP_COLOR:-'37;45'}
-export GREP_COLORS=${GREP_COLORS:-"mt=$GREP_COLOR"}
-alias grep='grep --color=auto'
 
 # Source .zshrc.d
 for file in "${ZDOTDIR:-$HOME}/.zshrc.d"/**/*.zsh(.N); do
