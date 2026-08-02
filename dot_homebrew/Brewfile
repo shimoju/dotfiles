@@ -9,8 +9,6 @@ brew "bat"
 brew "chezmoi"
 # Container runtimes on MacOS (and Linux) with minimal setup
 brew "colima"
-# Color-highlighted diff(1) output
-brew "colordiff"
 # Top-like interface for container metrics
 brew "ctop"
 # Get a file from an HTTP, HTTPS or FTP server
