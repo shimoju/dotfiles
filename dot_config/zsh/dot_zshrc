@@ -86,9 +86,6 @@ HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=red,bold,underline'
 typeset -ga ZSH_HIGHLIGHT_HIGHLIGHTERS=(
   main
   brackets
-  pattern
-  line
-  cursor
   root
 )
 
