@@ -1,6 +1,8 @@
 tap "coderabbitai/tap", trusted: true
 # Download with resuming and segmented downloading
 brew "aria2"
+# Zstandard is a real-time compression algorithm
+brew "zstd"
 # Official Amazon AWS command-line interface
 brew "awscli"
 # Clone of cat(1) with syntax highlighting and Git integration
