@@ -1,0 +1,20 @@
+[tools]
+node = "lts"
+python = "latest"
+ruby = "latest"
+
+[settings]
+auto_install = true
+not_found_auto_install = true
+github_attestations = true
+idiomatic_version_file_enable_tools = ["node", "python", "ruby"]
+
+[settings.node]
+compile = false
+gpg_verify = true
+
+[settings.python]
+compile = false
+
+[settings.ruby]
+compile = false
