@@ -14,6 +14,6 @@ update() {
   fi
 
   if (( $+commands[codex] )); then
-    curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+    codex update
   fi
 }
