@@ -3,7 +3,6 @@ setopt COMBINING_CHARS
 setopt INTERACTIVE_COMMENTS
 setopt RC_QUOTES
 setopt LONG_LIST_JOBS
-setopt AUTO_RESUME
 setopt NOTIFY
 unsetopt MAIL_WARNING
 unsetopt BG_NICE
@@ -12,8 +11,8 @@ unsetopt BG_NICE
 [[ -r ${TTY:-} && -w ${TTY:-} && $+commands[stty] == 1 ]] && stty -ixon <"$TTY" >"$TTY"
 
 HISTFILE="${ZDOTDIR:-$HOME}/.zsh_history"
-HISTSIZE=10000
-SAVEHIST=10000
+HISTSIZE=50000
+SAVEHIST=50000
 
 setopt BANG_HIST
 setopt EXTENDED_HISTORY
@@ -34,7 +33,6 @@ setopt PUSHD_TO_HOME
 setopt CDABLE_VARS
 setopt MULTIOS
 setopt EXTENDED_GLOB
-unsetopt CLOBBER
 
 # Line editor
 WORDCHARS='*?_-.[]~&;!#$%^(){}<>'
