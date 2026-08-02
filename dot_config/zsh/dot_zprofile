@@ -36,8 +36,10 @@ export LESS_TERMCAP_so=$'\E[00;47;30m'
 export LESS_TERMCAP_ue=$'\E[0m'
 export LESS_TERMCAP_us=$'\E[04;34m'
 
-# Source .zprofile.d
-for file in "${ZDOTDIR:-$HOME}/.zprofile.d"/**/*.zsh(.N); do
-  source "$file"
-done
-unset file
+# Go
+export GOBIN="$HOME/.local/bin"
+
+# Homebrew
+if [[ -x "/opt/homebrew/bin/brew" ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
