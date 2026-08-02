@@ -11,8 +11,6 @@ setopt AUTO_RESUME
 setopt NOTIFY
 unsetopt MAIL_WARNING
 unsetopt BG_NICE
-unsetopt HUP
-unsetopt CHECK_JOBS
 
 # Allow ZLE to receive Ctrl-Q instead of using terminal flow control.
 [[ -r ${TTY:-} && -w ${TTY:-} && $+commands[stty] == 1 ]] && stty -ixon <"$TTY" >"$TTY"
