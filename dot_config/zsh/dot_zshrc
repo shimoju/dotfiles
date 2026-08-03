@@ -136,7 +136,7 @@ if (( ${+widgets[history-substring-search-up]} )); then
 fi
 
 # Source .zshrc.d
-for file in "${ZDOTDIR:-$HOME}/.zshrc.d"/**/*.zsh(.N); do
-  source "$file"
+for _zshrc_file in "${ZDOTDIR:-$HOME}/.zshrc.d"/**/*.zsh(.N); do
+  source "$_zshrc_file"
 done
-unset file
+unset _zshrc_file
