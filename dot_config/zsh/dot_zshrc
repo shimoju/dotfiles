@@ -46,6 +46,18 @@ zmodload zsh/terminfo
 if [[ -n "$terminfo[kcbt]" ]]; then
   bindkey -M emacs "$terminfo[kcbt]" reverse-menu-complete
 fi
+
+for _key in "$terminfo[khome]" $'\e[H' $'\e[1~'; do
+  [[ -n "$_key" ]] && bindkey -M emacs "$_key" beginning-of-line
+done
+for _key in "$terminfo[kend]" $'\e[F' $'\e[4~'; do
+  [[ -n "$_key" ]] && bindkey -M emacs "$_key" end-of-line
+done
+for _key in "$terminfo[kdch1]" $'\e[3~'; do
+  [[ -n "$_key" ]] && bindkey -M emacs "$_key" delete-char
+done
+unset _key
+
 bindkey -M emacs '^Q' push-line-or-edit
 
 autoload -Uz bracketed-paste-magic
