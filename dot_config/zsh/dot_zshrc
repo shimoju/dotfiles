@@ -64,9 +64,9 @@ done
 for _key in "$terminfo[kend]" $'\e[F' $'\e[4~'; do
   [[ -n "$_key" ]] && bindkey -M emacs "$_key" end-of-line
 done
-for _key in "$terminfo[kdch1]" $'\e[3~'; do
-  [[ -n "$_key" ]] && bindkey -M emacs "$_key" delete-char
-done
+if [[ -n "$terminfo[kdch1]" ]]; then
+  bindkey -M emacs "$terminfo[kdch1]" delete-char
+fi
 unset _key
 
 bindkey -M emacs '^Q' push-line-or-edit
