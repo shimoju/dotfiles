@@ -51,6 +51,12 @@ zmodload zsh/terminfo
 if [[ -n "$terminfo[kcbt]" ]]; then
   bindkey -M emacs "$terminfo[kcbt]" reverse-menu-complete
 fi
+if [[ -n "$terminfo[kLFT5]" ]]; then
+  bindkey -M emacs "$terminfo[kLFT5]" emacs-backward-word
+fi
+if [[ -n "$terminfo[kRIT5]" ]]; then
+  bindkey -M emacs "$terminfo[kRIT5]" emacs-forward-word
+fi
 
 for _key in "$terminfo[khome]" $'\e[H' $'\e[1~'; do
   [[ -n "$_key" ]] && bindkey -M emacs "$_key" beginning-of-line
