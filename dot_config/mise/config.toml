@@ -3,6 +3,7 @@ go = "latest"
 node = "lts"
 pnpm = "latest"
 python = "latest"
+usage = "latest"
 
 [tools.ruby]
 version = "latest"
