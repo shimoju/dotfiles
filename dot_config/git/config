@@ -71,6 +71,8 @@
 	helper = osxkeychain
 [ghq]
 	root = ~/dev/src
+[gtr "editor"]
+	default = vscode
 [delta]
 	features = catppuccin-mocha
 	navigate = true
