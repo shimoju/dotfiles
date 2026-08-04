@@ -17,7 +17,6 @@
 
 - Prefer small, explicit configuration over frameworks, generated boilerplate, or speculative features.
 - Add aliases and integrations only when they have a concrete use. Keep comments only for non-obvious ordering, portability, or safety constraints.
-- Use official documentation when changing behavior that may vary by tool version.
 - Keep generated caches, completion files, secrets, and machine-local state out of version control.
 
 ## Zsh responsibilities
@@ -26,7 +25,6 @@
 - `dot_config/zsh/dot_zprofile`: login-session environment, exported variables, and base `PATH`, including Homebrew.
 - `dot_config/zsh/dot_zshrc`: interactive options, history, key bindings, aliases, completion styles, and plugin loading.
 - `dot_config/zsh/dot_zshrc.d/*.zsh`: tool-specific activation, aliases, and integration. Fragments load alphabetically; avoid hidden ordering dependencies and document any unavoidable dependency.
-- Load ez-compinit before anything that calls `compdef`. Preserve the plugin order: syntax highlighting, history substring search, then autosuggestions.
 - Prefer terminfo for terminal keys. Add literal escape-sequence fallbacks only for observed terminal-mode differences.
 - Prefix top-level temporary variables with a descriptive `_` name and `unset` them. Use `local` for variables inside functions.
 
