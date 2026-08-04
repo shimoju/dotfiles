@@ -94,8 +94,8 @@ fi
 unset _ls_version
 
 alias l='ls'
-alias ll='ls -lh'
-alias la='ls -lhA'
+alias la='ls -A'
+alias ll='ls -lhA'
 
 export GREP_COLOR='1;30;43'
 export GREP_COLORS="mt=$GREP_COLOR"

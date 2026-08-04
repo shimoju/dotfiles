@@ -1,5 +1,5 @@
 (( ! $+commands[eza] )) && return 1
 
-alias l='eza'
-alias ll='eza -l'
-alias la='eza -lA'
+alias l='eza --icons'
+alias la='eza -A --icons'
+alias ll='eza -lA --icons'
