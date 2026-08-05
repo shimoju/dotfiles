@@ -3,7 +3,7 @@ update() {
   brew cleanup
 
   if (( $+commands[mise] )); then
-    mise self-update
+    mise self-update -y
     mise -C "$HOME" upgrade
   fi
 
