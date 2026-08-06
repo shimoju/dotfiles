@@ -21,6 +21,9 @@ not_found_auto_install = true
 github_attestations = true
 idiomatic_version_file_enable_tools = ["go", "node", "python", "ruby", "rust"]
 
+[settings.github]
+use_git_credentials = true
+
 [settings.node]
 compile = false
 gpg_verify = true
