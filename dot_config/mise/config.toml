@@ -1,6 +1,7 @@
 [tools]
 go = "latest"
 node = "lts"
+"npm:@vtsls/language-server" = "latest"
 pnpm = "latest"
 python = "latest"
 usage = "latest"
@@ -12,6 +13,7 @@ postinstall = "gem install foreman rails rubocop ruby-lsp ruby-lsp-rails"
 [tools.rust]
 version = "stable"
 profile = "default"
+components = ["rust-analyzer", "rust-src"]
 
 [settings]
 auto_install = true

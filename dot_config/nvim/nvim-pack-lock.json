@@ -1,5 +1,10 @@
 {
   "plugins": {
+    "blink.cmp": {
+      "rev": "78336bc89ee5365633bcf754d93df01678b5c08f",
+      "src": "https://github.com/Saghen/blink.cmp",
+      "version": "1.0.0 - 2.0.0"
+    },
     "fzf-lua": {
       "rev": "c46b51aac910a2115545029f74b0a04df7ed1872",
       "src": "https://github.com/ibhagwan/fzf-lua"
@@ -7,6 +12,11 @@
     "gitsigns.nvim": {
       "rev": "31d6fb2d618bca1482b9f274751ead5f03461408",
       "src": "https://github.com/lewis6991/gitsigns.nvim"
+    },
+    "nvim-lspconfig": {
+      "rev": "b89138d9af0a96e6048e202a15765fc6b6416bd4",
+      "src": "https://github.com/neovim/nvim-lspconfig",
+      "version": "2.0.0 - 3.0.0"
     }
   }
 }
