@@ -106,11 +106,9 @@ alias diff='diff --color=auto'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='bg=yellow,fg=black,bold'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='fg=red,bold,underline'
 
-typeset -ga ZSH_HIGHLIGHT_HIGHLIGHTERS=(
-  main
-  brackets
-  root
-)
+typeset -ga ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets root)
+
+typeset -ga ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 
 zstyle ':plugin:ez-compinit' compstyle prez
 # Cache the completion dump for 20 hours and compile it when changed.
