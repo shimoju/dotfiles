@@ -34,4 +34,4 @@ gpg_verify = true
 compile = false
 
 [settings.ruby]
-compile = false
+compile = true
