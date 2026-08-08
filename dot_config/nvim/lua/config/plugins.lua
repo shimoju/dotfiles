@@ -34,4 +34,16 @@ vim.pack.add({
     src = "https://github.com/nvim-treesitter/nvim-treesitter",
     version = "main",
   },
+  { src = "https://github.com/antoinemadec/FixCursorHold.nvim" },
+  { src = "https://github.com/nvim-neotest/nvim-nio" },
+  { src = "https://github.com/nvim-neotest/neotest" },
+  { src = "https://github.com/olimorris/neotest-rspec" },
+  { src = "https://github.com/marilari88/neotest-vitest" },
+  { src = "https://github.com/mfussenegger/nvim-dap" },
+  { src = "https://github.com/rcarriga/nvim-dap-ui" },
+  { src = "https://github.com/suketa/nvim-dap-ruby" },
+  {
+    src = "https://github.com/mrcjkb/rustaceanvim",
+    version = vim.version.range("^9"),
+  },
 })

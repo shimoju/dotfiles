@@ -3,13 +3,14 @@ go = "latest"
 node = "lts"
 "npm:@vtsls/language-server" = "latest"
 "npm:skills" = "latest"
+"github:microsoft/vscode-js-debug" = { version = "latest", asset_pattern = "js-debug-dap-v*.tar.gz" }
 pnpm = "latest"
 python = "latest"
 usage = "latest"
 
 [tools.ruby]
 version = "latest"
-postinstall = "gem install foreman rails rubocop ruby-lsp ruby-lsp-rails"
+postinstall = "gem install debug foreman rails rubocop ruby-lsp ruby-lsp-rails"
 
 [tools.rust]
 version = "stable"

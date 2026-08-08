@@ -2,7 +2,7 @@ local formatter_by_filetype = {
   javascript = "vtsls",
   javascriptreact = "vtsls",
   ruby = "ruby_lsp",
-  rust = "rust_analyzer",
+  rust = "rust-analyzer",
   typescript = "vtsls",
   typescriptreact = "vtsls",
 }
@@ -46,4 +46,4 @@ vim.lsp.config("*", {
   capabilities = require("blink.cmp").get_lsp_capabilities(),
 })
 
-vim.lsp.enable({ "ruby_lsp", "rust_analyzer", "vtsls" })
+vim.lsp.enable({ "ruby_lsp", "vtsls" })
