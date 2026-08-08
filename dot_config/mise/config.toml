@@ -20,6 +20,7 @@ auto_install = true
 not_found_auto_install = true
 github_attestations = true
 idiomatic_version_file_enable_tools = ["go", "node", "python", "ruby", "rust"]
+minimum_release_age = "3d"
 
 [settings.github]
 use_git_credentials = true
