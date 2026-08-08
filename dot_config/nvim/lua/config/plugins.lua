@@ -15,6 +15,11 @@ vim.api.nvim_create_autocmd("PackChanged", {
 })
 
 vim.pack.add({
+  {
+    src = "https://github.com/catppuccin/nvim",
+    name = "catppuccin",
+    version = vim.version.range("^2"),
+  },
   { src = "https://github.com/ibhagwan/fzf-lua" },
   { src = "https://github.com/lewis6991/gitsigns.nvim" },
   {
