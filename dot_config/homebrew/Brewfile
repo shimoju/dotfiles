@@ -1,4 +1,4 @@
-tap "coderabbitai/tap", trusted: true
+tap "coderabbitai/tap"
 # Download with resuming and segmented downloading
 brew "aria2"
 # Zstandard is a real-time compression algorithm
@@ -78,7 +78,7 @@ brew "wget"
 # Shell extension to navigate your filesystem faster
 brew "zoxide"
 # Git worktree manager with editor and AI tool integration
-brew "coderabbitai/tap/git-gtr"
+brew "coderabbitai/tap/git-gtr", trusted: true
 # Password manager that keeps all passwords secure behind one password
 cask "1password"
 # Command-line interface for 1Password
