@@ -1,6 +1,12 @@
 tap "coderabbitai/tap"
+# Cryptography and SSL/TLS Toolkit
+brew "openssl@3"
+# Library for command-line editing
+brew "readline"
 # Download with resuming and segmented downloading
 brew "aria2"
+# Automatic configure script builder
+brew "autoconf"
 # Zstandard is a real-time compression algorithm
 brew "zstd"
 # Official Amazon AWS command-line interface
@@ -27,6 +33,8 @@ brew "eza"
 brew "fd"
 # Command-line fuzzy finder written in Go
 brew "fzf"
+# GNU multiple precision arithmetic library
+brew "gmp"
 # GitHub command-line tool
 brew "gh"
 # Remote repository management made easy
@@ -138,7 +146,6 @@ vscode "karunamurti.haml"
 vscode "koichisasada.vscode-rdbg"
 vscode "mechatroner.rainbow-csv"
 vscode "ms-azuretools.vscode-containers"
-vscode "ms-azuretools.vscode-docker"
 vscode "ms-ceintl.vscode-language-pack-ja"
 vscode "rust-lang.rust-analyzer"
 vscode "shopify.ruby-lsp"
