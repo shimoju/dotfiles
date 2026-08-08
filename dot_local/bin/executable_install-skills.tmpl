@@ -3,10 +3,10 @@
 set -euo pipefail
 
 # https://github.com/ogulcancelik/herdr
-npx skills@latest add ogulcancelik/herdr -s herdr -a claude-code -a codex -g -y
+skills add ogulcancelik/herdr -s herdr -a claude-code -a codex -g -y
 
 # https://github.com/mattpocock/skills
-npx skills@latest add mattpocock/skills -s grill-me -s grilling -s grill-with-docs -s domain-modeling -a claude-code -a codex -g -y
+skills add mattpocock/skills -s grill-me -s grilling -s grill-with-docs -s domain-modeling -a claude-code -a codex -g -y
 
 # https://github.com/modem-dev/hunk
 if command -v hunk >/dev/null; then
