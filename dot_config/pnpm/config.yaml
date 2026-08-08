@@ -1,0 +1,3 @@
+minimumReleaseAge: 4320 # 3 days
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
