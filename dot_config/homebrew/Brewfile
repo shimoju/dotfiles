@@ -63,6 +63,8 @@ brew "kubectx"
 brew "kubernetes-cli"
 # YAML Parser
 brew "libyaml"
+# Incremental parsing library
+brew "tree-sitter"
 # Ambitious Vim-fork focused on extensibility and agility
 brew "neovim"
 # OpenBSD freely-licensed SSH connectivity tools
@@ -79,6 +81,8 @@ brew "stern"
 brew "tmux"
 # Display directories as trees (with optional color/HTML output)
 brew "tree"
+# Parser generator tool
+brew "tree-sitter-cli"
 # Image processing library
 brew "vips"
 # Internet file retriever
