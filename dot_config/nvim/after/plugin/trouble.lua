@@ -1,6 +1,4 @@
-local trouble = require("trouble")
-
-trouble.setup()
+local trouble = require("config.trouble")
 
 local function toggle(mode)
   return function()
