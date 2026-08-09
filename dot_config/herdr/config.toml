@@ -5,6 +5,7 @@ name = "catppuccin"
 
 [keys]
 prefix = "ctrl+z"
+goto = ["prefix+g", "cmd+p"]
 previous_workspace = "ctrl+["
 next_workspace = "ctrl+]"
 switch_workspace = "ctrl+1..9"
