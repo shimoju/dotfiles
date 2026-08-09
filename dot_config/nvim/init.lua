@@ -6,6 +6,7 @@ vim.g.maplocalleader = "\\"
 
 require("config.options")
 require("config.keymaps")
+require("config.autocmds")
 -- The Neotest adapter reads this global config as soon as plugins load.
 require("config.rustaceanvim")
 require("config.plugins")
