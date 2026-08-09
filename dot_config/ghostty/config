@@ -6,6 +6,31 @@ keybind = global:alt+space=toggle_quick_terminal
 # Workaround: https://github.com/ghostty-org/ghostty/issues/10749
 keybind = super+c=copy_to_clipboard
 keybind = super+v=paste_from_clipboard
+# Use Cmd+1..9 for Ghostty tabs when multiple tabs exist; otherwise pass through to Herdr.
+keybind = performable:super+1=goto_tab:1
+keybind = performable:super+2=goto_tab:2
+keybind = performable:super+3=goto_tab:3
+keybind = performable:super+4=goto_tab:4
+keybind = performable:super+5=goto_tab:5
+keybind = performable:super+6=goto_tab:6
+keybind = performable:super+7=goto_tab:7
+keybind = performable:super+8=goto_tab:8
+keybind = performable:super+9=last_tab
+keybind = performable:super+digit_1=goto_tab:1
+keybind = performable:super+digit_2=goto_tab:2
+keybind = performable:super+digit_3=goto_tab:3
+keybind = performable:super+digit_4=goto_tab:4
+keybind = performable:super+digit_5=goto_tab:5
+keybind = performable:super+digit_6=goto_tab:6
+keybind = performable:super+digit_7=goto_tab:7
+keybind = performable:super+digit_8=goto_tab:8
+keybind = performable:super+digit_9=last_tab
+# Use Cmd+Shift+[/] for Ghostty tabs when multiple tabs exist; otherwise pass through to Herdr.
+keybind = performable:super+shift+[=previous_tab
+keybind = performable:super+shift+]=next_tab
+# Use Cmd+[/] for Ghostty splits when multiple splits exist; otherwise pass through to Herdr.
+keybind = performable:super+[=goto_split:previous
+keybind = performable:super+]=goto_split:next
 macos-titlebar-style = tabs
 mouse-hide-while-typing = true
 theme = Catppuccin Mocha
