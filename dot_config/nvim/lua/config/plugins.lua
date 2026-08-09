@@ -31,6 +31,10 @@ vim.pack.add({
     version = vim.version.range("^1"),
   },
   { src = "https://github.com/rafamadriz/friendly-snippets" },
+  {
+    src = "https://github.com/kylechui/nvim-surround",
+    version = vim.version.range("^4"),
+  },
   { src = "https://github.com/nvim-tree/nvim-web-devicons" },
   { src = "https://github.com/nvim-tree/nvim-tree.lua" },
   { src = "https://github.com/folke/which-key.nvim" },
