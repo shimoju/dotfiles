@@ -3,6 +3,13 @@ local opt = vim.opt
 opt.termguicolors = true
 opt.number = true
 opt.showmatch = true
+opt.list = true
+opt.listchars = {
+  tab = "» ",
+  lead = "·",
+  trail = "•",
+  nbsp = "␣",
+}
 
 opt.ignorecase = true
 opt.smartcase = true
