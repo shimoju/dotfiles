@@ -21,6 +21,10 @@ vim.pack.add({
     version = vim.version.range("^2"),
   },
   { src = "https://github.com/ibhagwan/fzf-lua" },
+  {
+    src = "https://github.com/folke/trouble.nvim",
+    version = vim.version.range("^3"),
+  },
   { src = "https://github.com/lewis6991/gitsigns.nvim" },
   {
     src = "https://github.com/neovim/nvim-lspconfig",

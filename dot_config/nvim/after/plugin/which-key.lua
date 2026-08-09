@@ -7,4 +7,5 @@ which_key.add({
   { "<leader>g", group = "git" },
   { "<leader>l", group = "LSP" },
   { "<leader>t", group = "test" },
+  { "<leader>x", group = "problems" },
 })
