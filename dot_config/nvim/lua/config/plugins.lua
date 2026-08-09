@@ -30,6 +30,13 @@ vim.pack.add({
     src = "https://github.com/Saghen/blink.cmp",
     version = vim.version.range("^1"),
   },
+  { src = "https://github.com/rafamadriz/friendly-snippets" },
+  { src = "https://github.com/nvim-tree/nvim-web-devicons" },
+  { src = "https://github.com/nvim-tree/nvim-tree.lua" },
+  { src = "https://github.com/folke/which-key.nvim" },
+  { src = "https://github.com/nvim-lualine/lualine.nvim" },
+  { src = "https://github.com/j-hui/fidget.nvim" },
+  { src = "https://github.com/lukas-reineke/indent-blankline.nvim" },
   {
     src = "https://github.com/nvim-treesitter/nvim-treesitter",
     version = "main",
