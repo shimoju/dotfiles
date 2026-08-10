@@ -68,6 +68,7 @@ vim.keymap.set("n", "<leader>lf", function()
 end, { desc = "Format LSP buffer" })
 
 vim.keymap.set("n", "<leader>lh", toggle_inlay_hints, { desc = "Toggle LSP inlay hints" })
+vim.keymap.set("n", "grd", vim.lsp.buf.definition, { desc = "Go to definition" })
 
 vim.lsp.config("*", {
   capabilities = require("blink.cmp").get_lsp_capabilities(),
