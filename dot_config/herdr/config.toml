@@ -26,6 +26,7 @@ swap_pane_down = ["prefix+shift+j", "prefix+shift+down"]
 swap_pane_up = ["prefix+shift+k", "prefix+shift+up"]
 swap_pane_right = ["prefix+shift+l", "prefix+shift+right"]
 zoom = ["prefix+z", "cmd+shift+enter"]
+remote_image_paste = "ctrl+shift+v"
 
 [[keys.command]]
 key = "prefix+f"
