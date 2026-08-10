@@ -99,8 +99,6 @@ cask "1password-cli"
 cask "chatgpt"
 # Anthropic's official Claude AI desktop app
 cask "claude"
-# Ghostty-based terminal with vertical tabs and notifications for AI coding agents
-cask "cmux"
 # Voice and text chat software
 cask "discord"
 # Web browser
