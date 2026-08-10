@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Neovim チートシート</title>
+  <style>
+    :root {
+      --base: #1e1e2e;
+      --mantle: #181825;
+      --crust: #11111b;
+      --surface-0: #313244;
+      --surface-1: #45475a;
+      --overlay-0: #6c7086;
+      --subtext-0: #a6adc8;
+      --text: #cdd6f4;
+      --mauve: #cba6f7;
+      --blue: #89b4fa;
+      --sapphire: #74c7ec;
+      --green: #a6e3a1;
+      --yellow: #f9e2af;
+      --peach: #fab387;
+      --red: #f38ba8;
+      --lavender: #b4befe;
+      --radius: 12px;
+      --shadow: 0 14px 40px rgb(0 0 0 / 24%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 24px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--base);
+      color: var(--text);
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+
+    a { color: var(--blue); }
+
+    button,
+    input { font: inherit; }
+
+    .skip-link {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 100;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--mauve);
+      color: var(--crust);
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    .hero {
+      border-bottom: 1px solid var(--surface-0);
+      background:
+        radial-gradient(circle at 80% 10%, rgb(203 166 247 / 14%), transparent 32rem),
+        linear-gradient(155deg, var(--crust), var(--mantle));
+    }
+
+    .hero-inner {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 48px 0 40px;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--mauve);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 4rem);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 14px 0 0;
+      color: var(--subtext-0);
+      font-size: 1.05rem;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .pill,
+    .mode {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--surface-1);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 750;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .pill {
+      padding: 7px 10px;
+      background: rgb(49 50 68 / 65%);
+      color: var(--lavender);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 36px;
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 32px 0 72px;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+
+    .search {
+      width: 100%;
+      margin-bottom: 18px;
+      padding: 10px 12px;
+      border: 1px solid var(--surface-1);
+      border-radius: 9px;
+      outline: none;
+      background: var(--mantle);
+      color: var(--text);
+    }
+
+    .search:focus {
+      border-color: var(--mauve);
+      box-shadow: 0 0 0 3px rgb(203 166 247 / 14%);
+    }
+
+    .toc-title {
+      margin: 0 0 8px;
+      color: var(--overlay-0);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .toc {
+      display: grid;
+      gap: 2px;
+    }
+
+    .toc a {
+      padding: 6px 9px;
+      border-radius: 7px;
+      color: var(--subtext-0);
+      font-size: 0.88rem;
+      text-decoration: none;
+    }
+
+    .toc a:hover,
+    .toc a:focus {
+      background: var(--surface-0);
+      color: var(--text);
+    }
+
+    .print-button {
+      width: 100%;
+      margin-top: 18px;
+      padding: 9px 12px;
+      border: 1px solid var(--surface-1);
+      border-radius: 9px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .print-button:hover { background: var(--surface-0); }
+
+    main { min-width: 0; }
+
+    .section {
+      margin-bottom: 48px;
+    }
+
+    .section[hidden],
+    .card[hidden] { display: none; }
+
+    .section-heading {
+      display: flex;
+      gap: 14px;
+      align-items: baseline;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--surface-0);
+    }
+
+    .section-number {
+      color: var(--mauve);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 1.6rem;
+      letter-spacing: -0.025em;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1.02rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--surface-0);
+      border-radius: var(--radius);
+      background: var(--mantle);
+      box-shadow: var(--shadow);
+    }
+
+    .card.wide { grid-column: 1 / -1; }
+
+    .card-header {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--surface-0);
+      background: rgb(49 50 68 / 28%);
+    }
+
+    .card-body { padding: 14px 16px; }
+
+    .card p {
+      margin: 0 0 12px;
+      color: var(--subtext-0);
+      font-size: 0.9rem;
+    }
+
+    .card p:last-child { margin-bottom: 0; }
+
+    .mode { padding: 5px 8px; }
+    .normal { border-color: rgb(137 180 250 / 45%); color: var(--blue); }
+    .insert { border-color: rgb(166 227 161 / 45%); color: var(--green); }
+    .visual { border-color: rgb(203 166 247 / 45%); color: var(--mauve); }
+    .command { border-color: rgb(249 226 175 / 45%); color: var(--yellow); }
+    .custom { border-color: rgb(250 179 135 / 45%); color: var(--peach); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th,
+    td {
+      padding: 8px 0;
+      border-bottom: 1px solid rgb(49 50 68 / 75%);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    tr:last-child th,
+    tr:last-child td { border-bottom: 0; }
+
+    th {
+      width: 38%;
+      padding-right: 12px;
+      color: var(--text);
+      font-weight: 650;
+    }
+
+    td { color: var(--subtext-0); }
+
+    kbd,
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    kbd {
+      display: inline-block;
+      min-width: 1.6em;
+      margin: 1px 1px;
+      padding: 2px 6px;
+      border: 1px solid var(--surface-1);
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      background: var(--surface-0);
+      color: var(--text);
+      font-size: 0.82rem;
+      line-height: 1.35;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    code { color: var(--green); }
+
+    .recipe {
+      display: grid;
+      grid-template-columns: minmax(7rem, auto) 1fr;
+      gap: 8px 14px;
+      align-items: baseline;
+      margin: 10px 0;
+    }
+
+    .recipe:last-child { margin-bottom: 0; }
+
+    .keys { white-space: nowrap; }
+
+    .hint,
+    .warning {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--blue);
+      border-radius: 0 7px 7px 0;
+      background: rgb(137 180 250 / 8%);
+      color: var(--subtext-0);
+      font-size: 0.86rem;
+    }
+
+    .warning {
+      border-left-color: var(--yellow);
+      background: rgb(249 226 175 / 8%);
+    }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      color: var(--subtext-0);
+      font-size: 0.9rem;
+    }
+
+    .flow .step {
+      padding: 7px 9px;
+      border: 1px solid var(--surface-1);
+      border-radius: 8px;
+      background: var(--surface-0);
+      color: var(--text);
+    }
+
+    .no-results {
+      padding: 32px;
+      border: 1px dashed var(--surface-1);
+      border-radius: var(--radius);
+      color: var(--subtext-0);
+      text-align: center;
+    }
+
+    .footer {
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--surface-0);
+      color: var(--overlay-0);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        max-height: none;
+      }
+      .toc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .print-button { width: auto; }
+    }
+
+    @media (max-width: 680px) {
+      .hero-inner,
+      .layout { width: min(100% - 24px, 1180px); }
+      .hero-inner { padding: 32px 0; }
+      .layout { padding-top: 20px; }
+      .grid { grid-template-columns: 1fr; }
+      .card.wide { grid-column: auto; }
+      .toc { grid-template-columns: 1fr; }
+      .recipe { grid-template-columns: 1fr; }
+      th { width: 44%; }
+    }
+
+    @media print {
+      :root {
+        --base: #fff;
+        --mantle: #fff;
+        --crust: #fff;
+        --surface-0: #ddd;
+        --surface-1: #aaa;
+        --overlay-0: #555;
+        --subtext-0: #333;
+        --text: #111;
+        --mauve: #6f3caf;
+        --blue: #2257a0;
+        --green: #246b2d;
+        --yellow: #7b5b00;
+        --peach: #8f3d00;
+        --shadow: none;
+      }
+      body { font-size: 9pt; }
+      .hero { background: none; }
+      .hero-inner { padding: 18px 0; }
+      .layout {
+        display: block;
+        width: 100%;
+        padding: 16px 0;
+      }
+      .sidebar,
+      .skip-link { display: none; }
+      .section { break-before: page; margin-bottom: 16px; }
+      .section:first-child { break-before: auto; }
+      .card { break-inside: avoid; }
+      .grid { gap: 10px; }
+      .card-header,
+      .card-body { padding: 9px 11px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Personal reference</p>
+      <h1>Neovim チートシート</h1>
+      <p class="subtitle">
+        コマンド一覧ではなく、「今から何をしたいか」で引くためのガイド。
+        基本のVim操作と、このdotfilesで追加した開発機能を一緒にまとめています。
+      </p>
+      <div class="hero-meta">
+        <span class="pill">Neovim 0.12.4</span>
+        <span class="pill">Leader = Space</span>
+        <span class="pill">Catppuccin Mocha</span>
+        <span class="pill">macOS clipboard共有</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="ページ内ナビゲーション">
+      <input id="search" class="search" type="search" placeholder="操作を検索… 例: rename" aria-label="チートシートを検索">
+      <p class="toc-title">Situation</p>
+      <nav class="toc">
+        <a href="#start">まず迷わない</a>
+        <a href="#move">目的地へ移動する</a>
+        <a href="#edit">文章・コードを編集する</a>
+        <a href="#search-replace">探す・置換する</a>
+        <a href="#files">ファイルと画面を扱う</a>
+        <a href="#project">プロジェクトを探す</a>
+        <a href="#code">コードを理解・修正する</a>
+        <a href="#git">変更内容を確認する</a>
+        <a href="#test">テストを実行する</a>
+        <a href="#debug">デバッグする</a>
+        <a href="#reference">困ったとき</a>
+      </nav>
+      <button class="print-button" type="button" onclick="window.print()">印刷 / PDF保存</button>
+    </aside>
+
+    <main id="main">
+      <div id="no-results" class="no-results" hidden>一致する操作がありません。</div>
+
+      <section id="start" class="section">
+        <div class="section-heading">
+          <span class="section-number">01</span>
+          <h2>まず迷わない</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="mode モード normal insert visual command esc leader space 基本">
+            <div class="card-header">
+              <h3>モードを意識する</h3>
+              <span class="mode normal">基本</span>
+            </div>
+            <div class="card-body">
+              <p>Vimは同じキーでもモードによって動作が変わります。迷ったらまずNormalモードへ戻ります。</p>
+              <table>
+                <tr><th><kbd>Esc</kbd></th><td>Normalモードへ戻る。この設定では検索ハイライトも消す</td></tr>
+                <tr><th><kbd>i</kbd></th><td>Insertモードへ入り、カーソル位置から入力する</td></tr>
+                <tr><th><kbd>v</kbd></th><td>Visualモードで文字単位の選択を始める</td></tr>
+                <tr><th><kbd>:</kbd></th><td>コマンドラインを開く</td></tr>
+                <tr><th><kbd>Space</kbd></th><td>Leader。少し待つとwhich-keyが機能一覧を表示する</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card" data-search="save quit write exit 保存 終了 閉じる w q wa qa">
+            <div class="card-header">
+              <h3>保存して終了する</h3>
+              <span class="mode command">Command</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>:w</kbd></th><td>現在のファイルを保存する</td></tr>
+                <tr><th><kbd>:q</kbd></th><td>現在のウィンドウを閉じる</td></tr>
+                <tr><th><kbd>:wq</kbd> / <kbd>ZZ</kbd></th><td>保存して閉じる</td></tr>
+                <tr><th><kbd>:q!</kbd></th><td>変更を破棄して閉じる</td></tr>
+                <tr><th><kbd>:wa</kbd></th><td>変更済みの全ファイルを保存する</td></tr>
+                <tr><th><kbd>:qa</kbd></th><td>Neovimを終了する</td></tr>
+              </table>
+              <div class="hint"><code>confirm</code>が有効なので、未保存の変更がある操作では確認が表示されます。</div>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="notation 記法 ctrl shift leader count motion text object 大文字 小文字">
+            <div class="card-header">
+              <h3>このページの読み方</h3>
+              <span class="mode custom">Notation</span>
+            </div>
+            <div class="card-body">
+              <div class="recipe"><span class="keys"><kbd>Space</kbd><kbd>f</kbd><kbd>f</kbd></span><span>順番に押す。Leader表記なら<code>&lt;Leader&gt;ff</code></span></div>
+              <div class="recipe"><span class="keys"><kbd>Ctrl</kbd>+<kbd>d</kbd></span><span><code>&lt;C-d&gt;</code>。Ctrlを押しながらdを押す</span></div>
+              <div class="recipe"><span class="keys"><kbd>d</kbd><kbd>{motion}</kbd></span><span><code>{motion}</code>には<kbd>w</kbd>や<kbd>$</kbd>などの移動を入れる</span></div>
+              <div class="recipe"><span class="keys"><kbd>3</kbd><kbd>j</kbd></span><span>数字は回数。3行下へ移動する</span></div>
+              <div class="warning">大文字・小文字は別の操作です。<kbd>u</kbd>と<kbd>U</kbd>、<kbd>p</kbd>と<kbd>P</kbd>は区別します。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="move" class="section">
+        <div class="section-heading">
+          <span class="section-number">02</span>
+          <h2>目的地へ移動する</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="cursor move h j k l word line 行 単語 移動">
+            <div class="card-header">
+              <h3>近くへ移動する</h3>
+              <span class="mode normal">Normal</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd></th><td>左・下・上・右へ移動</td></tr>
+                <tr><th><kbd>w</kbd> / <kbd>b</kbd></th><td>次の単語の先頭 / 前の単語の先頭</td></tr>
+                <tr><th><kbd>e</kbd></th><td>単語の末尾へ移動</td></tr>
+                <tr><th><kbd>0</kbd> / <kbd>^</kbd></th><td>行頭 / 行の最初の非空白文字</td></tr>
+                <tr><th><kbd>$</kbd></th><td>行末へ移動</td></tr>
+                <tr><th><kbd>%</kbd></th><td>対応する括弧へ移動</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card" data-search="jump page file top bottom paragraph scroll center gg G ctrl d u zz large move">
+            <div class="card-header">
+              <h3>大きく移動する</h3>
+              <span class="mode normal">Normal</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>gg</kbd> / <kbd>G</kbd></th><td>ファイル先頭 / 末尾へ</td></tr>
+                <tr><th><kbd>42G</kbd></th><td>42行目へ移動</td></tr>
+                <tr><th><kbd>{</kbd> / <kbd>}</kbd></th><td>前 / 次の段落へ</td></tr>
+                <tr><th><kbd>Ctrl-d</kbd> / <kbd>Ctrl-u</kbd></th><td>半画面下 / 上へスクロール</td></tr>
+                <tr><th><kbd>zz</kbd></th><td>現在行を画面中央へ置く</td></tr>
+                <tr><th><kbd>Ctrl-o</kbd> / <kbd>Ctrl-i</kbd></th><td>ジャンプ履歴を戻る / 進む</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="find character f t semicolon comma 行内 文字 探す">
+            <div class="card-header">
+              <h3>今いる行の文字へ飛ぶ</h3>
+              <span class="mode normal">Normal</span>
+            </div>
+            <div class="card-body">
+              <div class="flow">
+                <span class="step"><kbd>f</kbd><kbd>,</kbd> で次のカンマへ</span>
+                <span>→</span>
+                <span class="step"><kbd>;</kbd> で繰り返す</span>
+                <span>→</span>
+                <span class="step"><kbd>,</kbd> で逆方向へ</span>
+              </div>
+              <p style="margin-top: 12px"><kbd>t</kbd><kbd>{char}</kbd>は、その文字の1つ手前へ移動します。例: <kbd>dt,</kbd>で次のカンマ直前まで削除。</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="edit" class="section">
+        <div class="section-heading">
+          <span class="section-number">03</span>
+          <h2>文章・コードを編集する</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="insert input i a I A o O 入力 行 追加">
+            <div class="card-header">
+              <h3>入力を始める場所を選ぶ</h3>
+              <span class="mode insert">Insert</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>i</kbd> / <kbd>a</kbd></th><td>カーソルの前 / 後から入力</td></tr>
+                <tr><th><kbd>I</kbd> / <kbd>A</kbd></th><td>行頭 / 行末から入力</td></tr>
+                <tr><th><kbd>o</kbd> / <kbd>O</kbd></th><td>下 / 上に新しい行を作って入力</td></tr>
+                <tr><th><kbd>Esc</kbd></th><td>入力を終えてNormalモードへ</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card" data-search="undo redo repeat delete char x r dot u ctrl-r やり直し 元に戻す">
+            <div class="card-header">
+              <h3>小さく直して、繰り返す</h3>
+              <span class="mode normal">Normal</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>x</kbd></th><td>カーソル上の1文字を削除</td></tr>
+                <tr><th><kbd>r</kbd><kbd>{char}</kbd></th><td>カーソル上の1文字を置換</td></tr>
+                <tr><th><kbd>u</kbd></th><td>元に戻す。履歴は終了後も保持される</td></tr>
+                <tr><th><kbd>Ctrl-r</kbd></th><td>やり直す</td></tr>
+                <tr><th><kbd>.</kbd></th><td>直前の変更を別の場所で繰り返す</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="operator motion delete change yank d c y word line text object 編集 文法">
+            <div class="card-header">
+              <h3>「操作 × 範囲」で編集する</h3>
+              <span class="mode normal">Vimの核</span>
+            </div>
+            <div class="card-body">
+              <p><kbd>d</kbd>削除、<kbd>c</kbd>変更、<kbd>y</kbd>コピーに、移動やテキストオブジェクトを続けます。</p>
+              <div class="grid">
+                <table>
+                  <tr><th><kbd>dw</kbd></th><td>次の単語まで削除</td></tr>
+                  <tr><th><kbd>cw</kbd></th><td>単語末尾まで変更して入力</td></tr>
+                  <tr><th><kbd>d$</kbd> / <kbd>D</kbd></th><td>行末まで削除</td></tr>
+                  <tr><th><kbd>dd</kbd> / <kbd>yy</kbd></th><td>行を削除 / コピー</td></tr>
+                </table>
+                <table>
+                  <tr><th><kbd>ciw</kbd></th><td>カーソル位置の単語だけを変更</td></tr>
+                  <tr><th><kbd>ci"</kbd></th><td>ダブルクォート内を変更</td></tr>
+                  <tr><th><kbd>da(</kbd></th><td>括弧とその中身を削除</td></tr>
+                  <tr><th><kbd>dit</kbd></th><td>HTMLタグ内を削除</td></tr>
+                </table>
+              </div>
+              <div class="hint"><kbd>i</kbd>はinside（内側だけ）、<kbd>a</kbd>はaround（囲みや空白も含む）。例: <kbd>diw</kbd> と <kbd>daw</kbd>。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="copy paste clipboard yank put register y p P system macOS クリップボード コピー 貼り付け">
+            <div class="card-header">
+              <h3>コピー＆ペーストする</h3>
+              <span class="mode normal">Clipboard</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>yy</kbd></th><td>現在行をコピー</td></tr>
+                <tr><th><kbd>yiw</kbd></th><td>現在の単語をコピー</td></tr>
+                <tr><th><kbd>p</kbd> / <kbd>P</kbd></th><td>後 / 前へ貼り付け</td></tr>
+                <tr><th><kbd>"0p</kbd></th><td>削除で上書きされる前の、最後にコピーした内容を貼る</td></tr>
+                <tr><th><kbd>"_d</kbd><kbd>{motion}</kbd></th><td>クリップボードを上書きせず削除</td></tr>
+              </table>
+              <div class="warning">この設定では通常の<kbd>y</kbd>・<kbd>d</kbd>・<kbd>p</kbd>がmacOSのクリップボードと常時共有されます。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="visual select block indent format v V ctrl-v greater less equal 選択 インデント 整形">
+            <div class="card-header">
+              <h3>範囲を見ながら編集する</h3>
+              <span class="mode visual">Visual</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>v</kbd> / <kbd>V</kbd></th><td>文字単位 / 行単位で選択</td></tr>
+                <tr><th><kbd>Ctrl-v</kbd></th><td>矩形選択</td></tr>
+                <tr><th><kbd>y</kbd> / <kbd>d</kbd> / <kbd>c</kbd></th><td>選択範囲をコピー / 削除 / 変更</td></tr>
+                <tr><th><kbd>&gt;</kbd> / <kbd>&lt;</kbd></th><td>インデントを増やす / 減らす</td></tr>
+                <tr><th><kbd>=</kbd></th><td>選択範囲をインデントし直す</td></tr>
+                <tr><th><kbd>gv</kbd></th><td>直前の選択範囲を再選択</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="surround quote bracket tag nvim-surround ysiw ds cs S 囲む 括弧 クォート タグ">
+            <div class="card-header">
+              <h3>クォート・括弧・タグを付け替える</h3>
+              <span class="mode custom">nvim-surround</span>
+            </div>
+            <div class="card-body">
+              <div class="recipe"><span class="keys"><kbd>ysiw"</kbd></span><span>現在の単語をダブルクォートで囲む: <code>word</code> → <code>"word"</code></span></div>
+              <div class="recipe"><span class="keys"><kbd>ys$)</kbd></span><span>カーソルから行末までを括弧で囲む</span></div>
+              <div class="recipe"><span class="keys"><kbd>ds"</kbd></span><span>周囲のダブルクォートを削除する</span></div>
+              <div class="recipe"><span class="keys"><kbd>cs'"</kbd></span><span>周囲のシングルクォートをダブルクォートへ変更する</span></div>
+              <div class="recipe"><span class="keys"><kbd>v</kbd>で選択 → <kbd>S</kbd><kbd>}</kbd></span><span>選択範囲を波括弧で囲む</span></div>
+              <div class="recipe"><span class="keys"><kbd>dst</kbd> / <kbd>cst</kbd></span><span>周囲のHTMLタグを削除 / 別のタグへ変更</span></div>
+              <div class="hint">閉じ括弧<kbd>)</kbd><kbd>]</kbd><kbd>}</kbd>は空白なし、開き括弧<kbd>(</kbd><kbd>[</kbd><kbd>{</kbd>は内側に空白を入れます。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="search-replace" class="section">
+        <div class="section-heading">
+          <span class="section-number">04</span>
+          <h2>探す・置換する</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="search buffer slash question n N star hash 検索 次 前">
+            <div class="card-header">
+              <h3>開いているファイル内を探す</h3>
+              <span class="mode normal">Normal</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>/</kbd><code>text</code><kbd>Enter</kbd></th><td>下方向へ検索</td></tr>
+                <tr><th><kbd>?</kbd><code>text</code><kbd>Enter</kbd></th><td>上方向へ検索</td></tr>
+                <tr><th><kbd>n</kbd> / <kbd>N</kbd></th><td>次 / 逆方向の一致へ</td></tr>
+                <tr><th><kbd>*</kbd> / <kbd>#</kbd></th><td>カーソル位置の単語を下 / 上へ検索</td></tr>
+                <tr><th><kbd>Esc</kbd></th><td>検索結果の強調を消す</td></tr>
+              </table>
+              <div class="hint">小文字だけなら大文字小文字を無視し、大文字を含めると区別します（smartcase）。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="substitute replace regex percent s gc 置換 確認">
+            <div class="card-header">
+              <h3>安全に置換する</h3>
+              <span class="mode command">Command</span>
+            </div>
+            <div class="card-body">
+              <div class="recipe"><span class="keys"><kbd>:s/old/new/g</kbd></span><span>現在行のすべての<code>old</code>を置換</span></div>
+              <div class="recipe"><span class="keys"><kbd>:%s/old/new/gc</kbd></span><span>ファイル全体を1件ずつ確認しながら置換</span></div>
+              <div class="recipe"><span class="keys"><kbd>:'&lt;,'&gt;s/old/new/g</kbd></span><span>Visual選択した範囲だけ置換（選択後に<kbd>:</kbd>で範囲は自動入力）</span></div>
+              <div class="warning"><code>c</code>付きの確認では <kbd>y</kbd>置換、<kbd>n</kbd>スキップ、<kbd>a</kbd>残り全部、<kbd>q</kbd>終了。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="files" class="section">
+        <div class="section-heading">
+          <span class="section-number">05</span>
+          <h2>ファイルと画面を扱う</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="file open edit buffer next previous delete e bnext bprev bd ファイル バッファ 開く">
+            <div class="card-header">
+              <h3>ファイルとバッファを切り替える</h3>
+              <span class="mode command">Command</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>:e path</kbd></th><td>指定したファイルを開く</td></tr>
+                <tr><th><kbd>:ls</kbd></th><td>開いているバッファを一覧する</td></tr>
+                <tr><th><kbd>:bnext</kbd> / <kbd>:bprev</kbd></th><td>次 / 前のバッファへ</td></tr>
+                <tr><th><kbd>:b 3</kbd></th><td>一覧の番号3のバッファへ</td></tr>
+                <tr><th><kbd>:bd</kbd></th><td>現在のバッファを閉じる</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>b</kbd></th><td>fzf-luaでバッファを絞り込む</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card" data-search="window split vertical horizontal ctrl-w ウィンドウ 分割 移動">
+            <div class="card-header">
+              <h3>画面を分割する</h3>
+              <span class="mode normal">Window</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>:split</kbd> / <kbd>:vsplit</kbd></th><td>上下 / 左右に分割。新しい分割は下 / 右に開く</td></tr>
+                <tr><th><kbd>Ctrl-w</kbd> <kbd>h/j/k/l</kbd></th><td>左 / 下 / 上 / 右のウィンドウへ移動</td></tr>
+                <tr><th><kbd>Ctrl-w</kbd> <kbd>q</kbd></th><td>現在のウィンドウを閉じる</td></tr>
+                <tr><th><kbd>Ctrl-w</kbd> <kbd>o</kbd></th><td>現在のウィンドウ以外を閉じる</td></tr>
+                <tr><th><kbd>Ctrl-w</kbd> <kbd>=</kbd></th><td>分割サイズを揃える</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="nvim-tree explorer file tree create rename delete copy paste help ファイルツリー エクスプローラー">
+            <div class="card-header">
+              <h3>ファイルツリーで操作する</h3>
+              <span class="mode custom">nvim-tree</span>
+            </div>
+            <div class="card-body">
+              <p><kbd>Space</kbd><kbd>e</kbd>で開閉。開くと現在のファイルをツリー内で選択します。</p>
+              <div class="grid">
+                <table>
+                  <tr><th><kbd>Enter</kbd> / <kbd>o</kbd></th><td>ファイルを開く / ディレクトリを展開</td></tr>
+                  <tr><th><kbd>Tab</kbd></th><td>プレビューする</td></tr>
+                  <tr><th><kbd>Ctrl-v</kbd> / <kbd>Ctrl-x</kbd></th><td>左右 / 上下分割で開く</td></tr>
+                  <tr><th><kbd>q</kbd></th><td>ツリーを閉じる</td></tr>
+                </table>
+                <table>
+                  <tr><th><kbd>a</kbd></th><td>ファイルまたはディレクトリを作成</td></tr>
+                  <tr><th><kbd>r</kbd> / <kbd>d</kbd></th><td>名前変更 / 削除</td></tr>
+                  <tr><th><kbd>c</kbd> <kbd>x</kbd> <kbd>p</kbd></th><td>コピー / 切り取り / 貼り付け</td></tr>
+                  <tr><th><kbd>g?</kbd></th><td>全キーマップを表示</td></tr>
+                </table>
+              </div>
+              <div class="warning">ファイル操作は実ファイルへ即座に影響します。特に<kbd>d</kbd>で表示される確認対象を確認してください。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="project" class="section">
+        <div class="section-heading">
+          <span class="section-number">06</span>
+          <h2>プロジェクトを探す</h2>
+        </div>
+        <div class="grid">
+          <article class="card wide" data-search="fzf find files live grep buffers help git status project fuzzy search プロジェクト 検索">
+            <div class="card-header">
+              <h3>名前や内容から絞り込む</h3>
+              <span class="mode custom">fzf-lua</span>
+            </div>
+            <div class="card-body">
+              <div class="grid">
+                <table>
+                  <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>f</kbd></th><td>ファイル名から探す</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>g</kbd></th><td>プロジェクト全体の本文を検索</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>b</kbd></th><td>開いているバッファを探す</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>h</kbd></th><td>Neovimのヘルプを探す</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>s</kbd></th><td>Gitの変更ファイルを探す</td></tr>
+                </table>
+                <table>
+                  <tr><th><kbd>Enter</kbd></th><td>選択した結果を開く</td></tr>
+                  <tr><th><kbd>Ctrl-s</kbd></th><td>上下分割で開く</td></tr>
+                  <tr><th><kbd>Ctrl-v</kbd></th><td>左右分割で開く</td></tr>
+                  <tr><th><kbd>Ctrl-t</kbd></th><td>新しいタブで開く</td></tr>
+                  <tr><th><kbd>Ctrl-x</kbd></th><td>検索結果をTroubleへ送る</td></tr>
+                </table>
+              </div>
+              <div class="hint">文字を入力して候補を絞り、<kbd>↑</kbd><kbd>↓</kbd>または<kbd>Ctrl-p</kbd><kbd>Ctrl-n</kbd>で選びます。<kbd>Esc</kbd>で閉じます。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="code" class="section">
+        <div class="section-heading">
+          <span class="section-number">07</span>
+          <h2>コードを理解・修正する</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="lsp definition reference implementation type hover rename code action symbol 定義 参照 実装 型 リネーム">
+            <div class="card-header">
+              <h3>定義・参照・説明へ移動する</h3>
+              <span class="mode custom">LSP</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Ctrl-]</kbd></th><td>定義へ移動（LSPのtagfuncを利用）</td></tr>
+                <tr><th><kbd>K</kbd></th><td>カーソル位置の説明を表示</td></tr>
+                <tr><th><kbd>grr</kbd></th><td>参照箇所を一覧する</td></tr>
+                <tr><th><kbd>gri</kbd></th><td>実装へ移動する</td></tr>
+                <tr><th><kbd>grt</kbd></th><td>型定義へ移動する</td></tr>
+                <tr><th><kbd>gO</kbd></th><td>ドキュメントシンボルを一覧する</td></tr>
+                <tr><th><kbd>gx</kbd></th><td>カーソル位置のURLやLSPのdocument linkを開く</td></tr>
+              </table>
+              <div class="hint">移動後は<kbd>Ctrl-o</kbd>で元の場所へ戻れます。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="lsp rename action format inlay hint signature refactor リネーム 修正 フォーマット ヒント シグネチャ">
+            <div class="card-header">
+              <h3>コードを安全に変更する</h3>
+              <span class="mode custom">LSP</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>grn</kbd></th><td>シンボルをプロジェクト内でリネーム</td></tr>
+                <tr><th><kbd>gra</kbd></th><td>Code Actionから自動修正やリファクタリングを選ぶ</td></tr>
+                <tr><th><kbd>grx</kbd></th><td>カーソル位置のCodeLensアクションを実行</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>l</kbd><kbd>f</kbd></th><td>現在のバッファをフォーマット</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>l</kbd><kbd>h</kbd></th><td>Inlay hintsを現在のバッファで切り替える</td></tr>
+                <tr><th>Insert中 <kbd>Ctrl-s</kbd></th><td>関数のシグネチャを表示</td></tr>
+              </table>
+              <div class="hint">Ruby、Rust、JavaScript、TypeScriptでは保存直前にも対応LSPで自動フォーマットします。選択肢が複数あるLSP操作にはfzf-luaの一覧が使われます。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="diagnostic error warning next previous first last floating trouble 問題 エラー 警告 診断">
+            <div class="card-header">
+              <h3>エラーや警告を順に直す</h3>
+              <span class="mode custom">Diagnostics</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>]d</kbd> / <kbd>[d</kbd></th><td>次 / 前の診断へ</td></tr>
+                <tr><th><kbd>]D</kbd> / <kbd>[D</kbd></th><td>最後 / 最初の診断へ</td></tr>
+                <tr><th><kbd>Ctrl-w</kbd> <kbd>d</kbd></th><td>カーソル位置の診断をポップアップ表示</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>x</kbd><kbd>x</kbd></th><td>プロジェクト全体の診断をTroubleで開閉</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>x</kbd><kbd>b</kbd></th><td>現在のバッファの診断だけを開閉</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card" data-search="trouble symbols lsp locations quickfix panel problems enter split preview q 問題一覧 シンボル">
+            <div class="card-header">
+              <h3>一覧からコードへ移動する</h3>
+              <span class="mode custom">Trouble</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Space</kbd><kbd>x</kbd><kbd>s</kbd></th><td>現在のファイルのシンボル一覧</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>x</kbd><kbd>l</kbd></th><td>LSPの定義・参照などを右側へ表示</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>x</kbd><kbd>q</kbd></th><td>Quickfixリストを表示</td></tr>
+                <tr><th><kbd>Enter</kbd></th><td>選択項目へジャンプ</td></tr>
+                <tr><th><kbd>Ctrl-s</kbd> / <kbd>Ctrl-v</kbd></th><td>上下 / 左右分割でジャンプ</td></tr>
+                <tr><th><kbd>p</kbd> / <kbd>q</kbd> / <kbd>?</kbd></th><td>プレビュー / 閉じる / ヘルプ</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="completion blink cmp snippet super tab suggestion documentation signature 補完 スニペット">
+            <div class="card-header">
+              <h3>補完候補とスニペットを使う</h3>
+              <span class="mode custom">blink.cmp</span>
+            </div>
+            <div class="card-body">
+              <p>InsertモードでLSP、パス、スニペット、現在のバッファから候補が表示されます。ドキュメントは0.5秒後に自動表示されます。</p>
+              <div class="grid">
+                <table>
+                  <tr><th><kbd>Tab</kbd></th><td>候補を選択して確定。スニペット内では次の入力位置へ</td></tr>
+                  <tr><th><kbd>Shift-Tab</kbd></th><td>スニペットの前の入力位置へ</td></tr>
+                  <tr><th><kbd>Ctrl-n</kbd> / <kbd>Ctrl-p</kbd></th><td>次 / 前の候補を選択</td></tr>
+                  <tr><th><kbd>Ctrl-e</kbd></th><td>補完メニューを閉じる</td></tr>
+                </table>
+                <table>
+                  <tr><th><kbd>Ctrl-Space</kbd></th><td>補完メニュー、または候補の説明を表示</td></tr>
+                  <tr><th><kbd>Ctrl-b</kbd> / <kbd>Ctrl-f</kbd></th><td>候補の説明を上 / 下へスクロール</td></tr>
+                  <tr><th><kbd>Ctrl-k</kbd></th><td>関数シグネチャの表示を切り替える</td></tr>
+                  <tr><th><kbd>Enter</kbd></th><td>通常の改行。確定は<kbd>Tab</kbd>を使う</td></tr>
+                </table>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="git" class="section">
+        <div class="section-heading">
+          <span class="section-number">08</span>
+          <h2>変更内容を確認する</h2>
+        </div>
+        <div class="grid">
+          <article class="card wide" data-search="git hunk next previous preview blame diff status gitsigns 変更 差分 blame">
+            <div class="card-header">
+              <h3>Git差分をファイル上で追う</h3>
+              <span class="mode custom">gitsigns</span>
+            </div>
+            <div class="card-body">
+              <div class="grid">
+                <table>
+                  <tr><th><kbd>]c</kbd> / <kbd>[c</kbd></th><td>次 / 前の変更箇所（hunk）へ</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>p</kbd></th><td>現在のhunkをプレビュー</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>b</kbd></th><td>現在行の詳細なblameを表示</td></tr>
+                </table>
+                <table>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>d</kbd></th><td>現在のバッファとindexとの差分を開く</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>s</kbd></th><td>変更ファイルをfzf-luaで選ぶ</td></tr>
+                  <tr><th><kbd>:diffupdate</kbd></th><td>diff表示を更新する</td></tr>
+                </table>
+              </div>
+              <div class="hint">diffモード中の<kbd>]c</kbd><kbd>[c</kbd>は、Vim標準の次 / 前の差分移動として動きます。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="test" class="section">
+        <div class="section-heading">
+          <span class="section-number">09</span>
+          <h2>テストを実行する</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="test nearest file last stop rspec vitest rust neotest テスト 実行 停止">
+            <div class="card-header">
+              <h3>対象を選んで実行する</h3>
+              <span class="mode custom">Neotest</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>n</kbd></th><td>カーソルに最も近いテストを実行</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>f</kbd></th><td>現在のテストファイル全体を実行</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>l</kbd></th><td>直前のテストを再実行</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>S</kbd></th><td>実行中のテストを停止</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>d</kbd></th><td>最も近いテストをDAPでデバッグ</td></tr>
+              </table>
+              <div class="hint">RSpec、Vitest、Rustのテストに対応しています。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="test summary output panel result tree neotest 結果 出力 サマリー">
+            <div class="card-header">
+              <h3>結果と出力を確認する</h3>
+              <span class="mode custom">Neotest</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>s</kbd></th><td>テスト構造と結果のサマリーを開閉</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>o</kbd></th><td>現在のテストの出力を開き、ウィンドウへ移動</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>t</kbd><kbd>p</kbd></th><td>全体の出力パネルを開閉</td></tr>
+                <tr><th>Summary内 <kbd>r</kbd></th><td>選択したテストを実行</td></tr>
+                <tr><th>Summary内 <kbd>d</kbd> / <kbd>o</kbd></th><td>デバッグ / 出力を表示</td></tr>
+                <tr><th>Summary内 <kbd>?</kbd></th><td>利用できる操作を表示</td></tr>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="debug" class="section">
+        <div class="section-heading">
+          <span class="section-number">10</span>
+          <h2>デバッグする</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="debug dap breakpoint continue step over into out terminate デバッグ ブレークポイント ステップ">
+            <div class="card-header">
+              <h3>止めて、1行ずつ追う</h3>
+              <span class="mode custom">nvim-dap</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Space</kbd><kbd>d</kbd><kbd>b</kbd></th><td>現在行のブレークポイントを切り替える</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>d</kbd><kbd>B</kbd></th><td>条件付きブレークポイントを設定</td></tr>
+                <tr><th><kbd>F5</kbd> / <kbd>Space</kbd><kbd>d</kbd><kbd>c</kbd></th><td>開始 / 次のブレークポイントまで続行</td></tr>
+                <tr><th><kbd>F10</kbd></th><td>ステップオーバー</td></tr>
+                <tr><th><kbd>F11</kbd></th><td>ステップイン</td></tr>
+                <tr><th><kbd>F12</kbd></th><td>ステップアウト</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>d</kbd><kbd>t</kbd></th><td>デバッグセッションを終了</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card" data-search="debug ui repl last dapui variables stack watch デバッグ UI 変数 スタック ウォッチ">
+            <div class="card-header">
+              <h3>状態を調べる</h3>
+              <span class="mode custom">nvim-dap-ui</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Space</kbd><kbd>d</kbd><kbd>u</kbd></th><td>デバッグUIを開閉</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>d</kbd><kbd>r</kbd></th><td>REPLを開閉</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>d</kbd><kbd>l</kbd></th><td>最後のデバッグ構成を再実行</td></tr>
+                <tr><th>UI内 <kbd>Enter</kbd></th><td>項目を展開</td></tr>
+                <tr><th>UI内 <kbd>e</kbd> / <kbd>d</kbd></th><td>値を編集 / 項目を削除</td></tr>
+                <tr><th>UI内 <kbd>r</kbd> / <kbd>t</kbd></th><td>REPLへ送る / 値を切り替える</td></tr>
+              </table>
+              <div class="hint">開始時にUIが自動で開き、通常終了時に閉じます。Ruby、Rust、JavaScript/TypeScript、Vitest向けの構成があります。</div>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="debug workflow recipe breakpoint test dap 手順 レシピ">
+            <div class="card-header">
+              <h3>最短のデバッグ手順</h3>
+              <span class="mode custom">Recipe</span>
+            </div>
+            <div class="card-body">
+              <div class="flow">
+                <span class="step">止めたい行で <kbd>Space</kbd><kbd>d</kbd><kbd>b</kbd></span>
+                <span>→</span>
+                <span class="step"><kbd>F5</kbd>で構成を選択・開始</span>
+                <span>→</span>
+                <span class="step"><kbd>F10</kbd>/<kbd>F11</kbd>で追跡</span>
+                <span>→</span>
+                <span class="step"><kbd>Space</kbd><kbd>d</kbd><kbd>t</kbd>で終了</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="reference" class="section">
+        <div class="section-heading">
+          <span class="section-number">11</span>
+          <h2>困ったとき・覚えるとき</h2>
+        </div>
+        <div class="grid">
+          <article class="card" data-search="help which-key leader command mapping check keymap ヘルプ 調べる">
+            <div class="card-header">
+              <h3>操作をその場で調べる</h3>
+              <span class="mode command">Help</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Space</kbd>後に待つ</th><td>which-keyでLeader操作の候補を見る</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>h</kbd></th><td>ヘルプ項目を曖昧検索する</td></tr>
+                <tr><th><kbd>:help topic</kbd></th><td>指定したヘルプを開く。例: <code>:help ciw</code></td></tr>
+                <tr><th><kbd>:verbose nmap &lt;key&gt;</kbd></th><td>Normalモードのキーマップと定義元を確認</td></tr>
+                <tr><th><kbd>:checkhealth</kbd></th><td>Neovimとプラグインの状態を診断</td></tr>
+                <tr><th><kbd>:messages</kbd></th><td>消えた通知やエラーを読み返す</td></tr>
+              </table>
+            </div>
+          </article>
+
+          <article class="card" data-search="settings config behavior number cursorline clipboard indent whitespace listchars format feature 設定 動作">
+            <div class="card-header">
+              <h3>現在の設定で自動になること</h3>
+              <span class="mode custom">Config</span>
+            </div>
+            <div class="card-body">
+              <ul>
+                <li>行番号、現在行、sign columnを常時表示</li>
+                <li>タブは<code>»</code>、行末の余分な空白は<code>•</code>で可視化</li>
+                <li>インデントは基本2スペース、Tab入力もスペースへ展開</li>
+                <li>コピー・削除・貼り付けはシステムクリップボードと共有</li>
+                <li>yank直後の範囲を一時的に強調</li>
+                <li>Ruby / Rust / JavaScript / TypeScriptはLSP、補完、保存時フォーマットが有効</li>
+                <li>Tree-sitterによる構文解析、indent guide、Git差分表示が自動で有効</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="card wide" data-search="learning vimtutor practice beginner learn 初心者 練習 学習">
+            <div class="card-header">
+              <h3>初心者向けの覚える順番</h3>
+              <span class="mode custom">Learning path</span>
+            </div>
+            <div class="card-body">
+              <div class="flow">
+                <span class="step">1. <kbd>Esc</kbd> <kbd>i</kbd> <kbd>:w</kbd> <kbd>:q</kbd></span>
+                <span>→</span>
+                <span class="step">2. <kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> <kbd>w</kbd><kbd>b</kbd></span>
+                <span>→</span>
+                <span class="step">3. <kbd>d</kbd><kbd>c</kbd><kbd>y</kbd> × motion</span>
+                <span>→</span>
+                <span class="step">4. <kbd>ciw</kbd> <kbd>ci"</kbd> <kbd>.</kbd></span>
+                <span>→</span>
+                <span class="step">5. Leaderの開発機能</span>
+              </div>
+              <p style="margin-top: 14px">基礎を手で練習するなら、ターミナルで<code>vimtutor</code>を実行するのが最短です。一度に全部覚えず、毎週1〜2個ずつ普段の操作を置き換えます。</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <footer class="footer">
+        このページは <code>dot_config/nvim</code> の設定と、インストール済みのNeovim 0.12.4 / プラグインの標準キーマップを基準に作成。更新日: 2026-08-10
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    const search = document.querySelector("#search");
+    const sections = [...document.querySelectorAll(".section")];
+    const noResults = document.querySelector("#no-results");
+
+    search.addEventListener("input", () => {
+      const query = search.value.trim().toLocaleLowerCase("ja");
+      let visibleCards = 0;
+
+      for (const section of sections) {
+        const cards = [...section.querySelectorAll(".card")];
+        let visibleInSection = 0;
+
+        for (const card of cards) {
+          const text = `${card.textContent} ${card.dataset.search || ""}`.toLocaleLowerCase("ja");
+          const visible = !query || text.includes(query);
+          card.hidden = !visible;
+          visibleInSection += visible ? 1 : 0;
+        }
+
+        section.hidden = visibleInSection === 0;
+        visibleCards += visibleInSection;
+      }
+
+      noResults.hidden = visibleCards !== 0;
+    });
+  </script>
+</body>
+</html>
