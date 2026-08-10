@@ -14,7 +14,6 @@ vim.api.nvim_create_autocmd("PackChanged", {
   end,
 })
 
--- Feature groups below are activated on their first key or command.
 vim.pack.add({
   {
     src = "https://github.com/catppuccin/nvim",
@@ -55,6 +54,7 @@ vim.pack.add({
   },
 })
 
+-- Feature groups below are activated on their first key or command.
 vim.pack.add({
   { src = "https://github.com/nvim-tree/nvim-tree.lua" },
   { src = "https://github.com/antoinemadec/FixCursorHold.nvim" },
