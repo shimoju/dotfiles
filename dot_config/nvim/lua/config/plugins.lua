@@ -14,6 +14,7 @@ vim.api.nvim_create_autocmd("PackChanged", {
   end,
 })
 
+-- Feature groups below are activated on their first key or command.
 vim.pack.add({
   {
     src = "https://github.com/catppuccin/nvim",
@@ -40,7 +41,6 @@ vim.pack.add({
     version = vim.version.range("^4"),
   },
   { src = "https://github.com/nvim-tree/nvim-web-devicons" },
-  { src = "https://github.com/nvim-tree/nvim-tree.lua" },
   { src = "https://github.com/folke/which-key.nvim" },
   { src = "https://github.com/nvim-lualine/lualine.nvim" },
   { src = "https://github.com/j-hui/fidget.nvim" },
@@ -49,6 +49,14 @@ vim.pack.add({
     src = "https://github.com/nvim-treesitter/nvim-treesitter",
     version = "main",
   },
+  {
+    src = "https://github.com/mrcjkb/rustaceanvim",
+    version = vim.version.range("^9"),
+  },
+})
+
+vim.pack.add({
+  { src = "https://github.com/nvim-tree/nvim-tree.lua" },
   { src = "https://github.com/antoinemadec/FixCursorHold.nvim" },
   { src = "https://github.com/nvim-neotest/nvim-nio" },
   { src = "https://github.com/nvim-neotest/neotest" },
@@ -57,8 +65,4 @@ vim.pack.add({
   { src = "https://github.com/mfussenegger/nvim-dap" },
   { src = "https://github.com/rcarriga/nvim-dap-ui" },
   { src = "https://github.com/suketa/nvim-dap-ruby" },
-  {
-    src = "https://github.com/mrcjkb/rustaceanvim",
-    version = vim.version.range("^9"),
-  },
-})
+}, { load = require("config.pack").defer })
