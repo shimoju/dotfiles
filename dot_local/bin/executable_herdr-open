@@ -5,8 +5,8 @@ set -u
 usage() {
   cat <<'EOF'
 Usage:
-  herdr-open --tab -- COMMAND [ARG ...]
-  herdr-open --pane --direction right|down -- COMMAND [ARG ...]
+  herdr-open (-t|--tab) -- COMMAND [ARG ...]
+  herdr-open (-p|--pane) [(-d|--direction) right|down] -- COMMAND [ARG ...]
 EOF
 }
 
@@ -26,15 +26,15 @@ _herdr_open_direction=
 
 while [ "$#" -gt 0 ]; do
   case $1 in
-    --tab)
+    -t|--tab)
       [ -z "$_herdr_open_mode" ] || notify_error "specify exactly one of --tab and --pane"
       _herdr_open_mode=tab
       ;;
-    --pane)
+    -p|--pane)
       [ -z "$_herdr_open_mode" ] || notify_error "specify exactly one of --tab and --pane"
       _herdr_open_mode=pane
       ;;
-    --direction)
+    -d|--direction)
       [ -z "$_herdr_open_direction" ] || notify_error "--direction may only be specified once"
       shift
       [ "$#" -gt 0 ] || notify_error "--direction requires right or down"
@@ -64,8 +64,8 @@ case $_herdr_open_mode in
     ;;
   pane)
     case $_herdr_open_direction in
+      '') _herdr_open_direction=right ;;
       right|down) ;;
-      '') notify_error "--direction is required with --pane" ;;
       *) notify_error "invalid direction: $_herdr_open_direction (expected right or down)" ;;
     esac
     ;;
