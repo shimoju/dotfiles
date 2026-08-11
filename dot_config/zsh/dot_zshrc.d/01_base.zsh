@@ -25,6 +25,13 @@ else
   alias ll='ls -lhA'
 fi
 
+# bat
+if (( $+commands[bat] )); then
+  alias c='bat'
+else
+  alias c='cat'
+fi
+
 # zoxide
 if (( $+commands[zoxide] )); then
   eval "$(zoxide init zsh)"
