@@ -51,6 +51,12 @@ height = "80%"
 [[keys.command]]
 key = "prefix+a"
 type = "shell"
+command = "herdr-open --pane --direction right -- ${DEFAULT_CODING_AGENT:-codex}"
+description = "open coding agent in split"
+
+[[keys.command]]
+key = "prefix+shift+a"
+type = "shell"
 command = "herdr-open --tab -- ${DEFAULT_CODING_AGENT:-codex}"
 description = "open coding agent in tab"
 
