@@ -25,6 +25,11 @@ else
   alias ll='ls -lhA'
 fi
 
+# zoxide
+if (( $+commands[zoxide] )); then
+  eval "$(zoxide init zsh)"
+fi
+
 # fzf
 if (( $+commands[fzf] )); then
   source <(fzf --zsh)
