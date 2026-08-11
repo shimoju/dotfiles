@@ -64,3 +64,8 @@ function y() {
 if [[ -r "${XDG_DATA_HOME:-$HOME/.local/share}/safe-chain/scripts/init-posix.sh" ]]; then
   source "${XDG_DATA_HOME:-$HOME/.local/share}/safe-chain/scripts/init-posix.sh"
 fi
+
+# starship
+if (( $+commands[starship] )); then
+  eval "$(starship init zsh)"
+fi
