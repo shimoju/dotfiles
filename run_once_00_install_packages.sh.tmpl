@@ -19,3 +19,8 @@ if [[ ! -x "$HOME/.local/bin/mise" ]]; then
 fi
 
 "$HOME/.local/bin/mise" -C "$HOME" install
+
+# yazi
+if command -v ya >/dev/null; then
+  ya pkg install
+fi
