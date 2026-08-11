@@ -1,5 +1,3 @@
-(( ! $+commands[herdr] )) && return 1
-
 alias h='herdr'
 
 _herdr_widget() {
