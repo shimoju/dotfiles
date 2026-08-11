@@ -1,0 +1,116 @@
+#!/bin/sh
+
+set -u
+
+usage() {
+  cat <<'EOF'
+Usage:
+  herdr-open --tab -- COMMAND [ARG ...]
+  herdr-open --pane --direction right|down -- COMMAND [ARG ...]
+EOF
+}
+
+notify_error() {
+  _herdr_open_message=$1
+
+  if [ -n "${HERDR_BIN_PATH:-}" ] && [ -x "$HERDR_BIN_PATH" ]; then
+    "$HERDR_BIN_PATH" notification show "herdr-open failed" \
+      --body "$_herdr_open_message" --sound request >/dev/null 2>&1 || true
+  fi
+  printf 'herdr-open: %s\n' "$_herdr_open_message" >&2
+  exit 1
+}
+
+_herdr_open_mode=
+_herdr_open_direction=
+
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --tab)
+      [ -z "$_herdr_open_mode" ] || notify_error "specify exactly one of --tab and --pane"
+      _herdr_open_mode=tab
+      ;;
+    --pane)
+      [ -z "$_herdr_open_mode" ] || notify_error "specify exactly one of --tab and --pane"
+      _herdr_open_mode=pane
+      ;;
+    --direction)
+      [ -z "$_herdr_open_direction" ] || notify_error "--direction may only be specified once"
+      shift
+      [ "$#" -gt 0 ] || notify_error "--direction requires right or down"
+      _herdr_open_direction=$1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      notify_error "unknown option: $1"
+      ;;
+  esac
+  shift
+done
+
+[ -n "$_herdr_open_mode" ] || notify_error "specify exactly one of --tab and --pane"
+[ "$#" -gt 0 ] || notify_error "COMMAND is required after --"
+
+case $_herdr_open_mode in
+  tab)
+    [ -z "$_herdr_open_direction" ] || notify_error "--direction is only valid with --pane"
+    ;;
+  pane)
+    case $_herdr_open_direction in
+      right|down) ;;
+      '') notify_error "--direction is required with --pane" ;;
+      *) notify_error "invalid direction: $_herdr_open_direction (expected right or down)" ;;
+    esac
+    ;;
+esac
+
+[ -n "${HERDR_SOCKET_PATH:-}" ] || notify_error "HERDR_SOCKET_PATH is not set"
+[ -n "${HERDR_BIN_PATH:-}" ] || notify_error "HERDR_BIN_PATH is not set"
+[ -x "$HERDR_BIN_PATH" ] || notify_error "HERDR_BIN_PATH is not executable: $HERDR_BIN_PATH"
+[ -n "${HERDR_ACTIVE_PANE_CWD:-}" ] || notify_error "HERDR_ACTIVE_PANE_CWD is not set"
+command -v jq >/dev/null 2>&1 || notify_error "jq is required"
+
+# pane run accepts one shell command string, so preserve the original argv boundaries.
+_herdr_open_command=$(jq -nr --args '$ARGS.positional | map(@sh) | join(" ")' -- "$@") ||
+  notify_error "failed to quote command arguments"
+
+case $_herdr_open_mode in
+  tab)
+    [ -n "${HERDR_ACTIVE_WORKSPACE_ID:-}" ] || notify_error "HERDR_ACTIVE_WORKSPACE_ID is not set"
+    if ! _herdr_open_response=$("$HERDR_BIN_PATH" tab create \
+      --workspace "$HERDR_ACTIVE_WORKSPACE_ID" \
+      --cwd "$HERDR_ACTIVE_PANE_CWD" \
+      --focus 2>&1); then
+      notify_error "failed to create tab: $_herdr_open_response"
+    fi
+    _herdr_open_pane_path='.result.root_pane.pane_id'
+    ;;
+  pane)
+    [ -n "${HERDR_ACTIVE_PANE_ID:-}" ] || notify_error "HERDR_ACTIVE_PANE_ID is not set"
+    if ! _herdr_open_response=$("$HERDR_BIN_PATH" pane split \
+      --pane "$HERDR_ACTIVE_PANE_ID" \
+      --direction "$_herdr_open_direction" \
+      --cwd "$HERDR_ACTIVE_PANE_CWD" \
+      --focus 2>&1); then
+      notify_error "failed to create pane: $_herdr_open_response"
+    fi
+    _herdr_open_pane_path='.result.pane.pane_id'
+    ;;
+esac
+
+if ! _herdr_open_pane_id=$(printf '%s\n' "$_herdr_open_response" |
+  jq -er "$_herdr_open_pane_path | select(type == \"string\" and length > 0)" 2>/dev/null); then
+  notify_error "Herdr returned an invalid create response"
+fi
+
+if ! _herdr_open_response=$("$HERDR_BIN_PATH" pane run \
+  "$_herdr_open_pane_id" "$_herdr_open_command" 2>&1); then
+  notify_error "failed to run command in $_herdr_open_pane_id: $_herdr_open_response"
+fi

@@ -48,6 +48,12 @@ description = "open scratch terminal"
 width = "80%"
 height = "80%"
 
+[[keys.command]]
+key = "prefix+a"
+type = "shell"
+command = "herdr-open --tab -- codex"
+description = "open codex in tab"
+
 [ui]
 agent_panel_sort = "spaces"
 mouse_scroll_lines = 1
