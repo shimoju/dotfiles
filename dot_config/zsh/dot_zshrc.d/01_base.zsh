@@ -59,3 +59,8 @@ function y() {
   [ "$cwd" != "$PWD" ] && [ -d "$cwd" ] && builtin cd -- "$cwd"
   command rm -f -- "$tmp"
 }
+
+# safe-chain
+if [[ -r "${XDG_DATA_HOME:-$HOME/.local/share}/safe-chain/scripts/init-posix.sh" ]]; then
+  source "${XDG_DATA_HOME:-$HOME/.local/share}/safe-chain/scripts/init-posix.sh"
+fi
