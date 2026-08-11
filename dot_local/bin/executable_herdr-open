@@ -77,9 +77,10 @@ esac
 [ -n "${HERDR_ACTIVE_PANE_CWD:-}" ] || notify_error "HERDR_ACTIVE_PANE_CWD is not set"
 command -v jq >/dev/null 2>&1 || notify_error "jq is required"
 
-# pane run accepts one shell command string, so preserve the original argv boundaries.
+# pane run echoes its shell input, so clear it before running the safely quoted argv.
 _herdr_open_command=$(jq -nr --args '$ARGS.positional | map(@sh) | join(" ")' -- "$@") ||
   notify_error "failed to quote command arguments"
+_herdr_open_command="clear; $_herdr_open_command"
 
 case $_herdr_open_mode in
   tab)
