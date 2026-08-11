@@ -80,7 +80,7 @@ command -v jq >/dev/null 2>&1 || notify_error "jq is required"
 # pane run echoes its shell input, so clear it before running the safely quoted argv.
 _herdr_open_command=$(jq -nr --args '$ARGS.positional | map(@sh) | join(" ")' -- "$@") ||
   notify_error "failed to quote command arguments"
-_herdr_open_command="clear; $_herdr_open_command"
+_herdr_open_command=" clear; $_herdr_open_command"
 
 case $_herdr_open_mode in
   tab)
