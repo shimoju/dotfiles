@@ -1,3 +1,4 @@
+# herdr
 alias h='herdr'
 
 _herdr_widget() {
