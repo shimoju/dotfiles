@@ -1,6 +1,10 @@
 [mgr]
 show_hidden = true
 
+[preview]
+max_width = 1920
+max_height = 1920
+
 [[plugin.prepend_fetchers]]
 url = "*"
 run = "git"
