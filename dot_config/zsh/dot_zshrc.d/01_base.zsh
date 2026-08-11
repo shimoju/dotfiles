@@ -9,11 +9,18 @@ else
 fi
 unset _ls_version
 
-alias l='ls'
-alias la='ls -A'
-alias ll='ls -lhA'
-
 export GREP_COLOR='1;30;43'
 export GREP_COLORS="mt=$GREP_COLOR"
 alias grep='grep --color=auto'
 alias diff='diff --color=auto'
+
+# eza
+if (( $+commands[eza] )); then
+  alias l='eza --icons=auto'
+  alias la='eza -A --icons=auto'
+  alias ll='eza -lA --icons=auto'
+else
+  alias l='ls'
+  alias la='ls -A'
+  alias ll='ls -lhA'
+fi
