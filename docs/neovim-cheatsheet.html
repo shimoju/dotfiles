@@ -826,7 +826,7 @@
           <h2>プロジェクトを探す</h2>
         </div>
         <div class="grid">
-          <article class="card wide" data-search="fzf find files live grep buffers help git status project fuzzy search プロジェクト 検索">
+          <article class="card wide" data-search="fzf find files live grep word visual resume buffers help git status project fuzzy search 単語 選択 再開 プロジェクト 検索">
             <div class="card-header">
               <h3>名前や内容から絞り込む</h3>
               <span class="mode custom">fzf-lua</span>
@@ -836,11 +836,14 @@
                 <table>
                   <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>f</kbd></th><td>ファイル名から探す</td></tr>
                   <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>g</kbd></th><td>プロジェクト全体の本文を検索</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>w</kbd></th><td>カーソル下の単語をプロジェクト全体から探す</td></tr>
+                  <tr><th>Visual <kbd>Space</kbd><kbd>f</kbd><kbd>w</kbd></th><td>選択した文字列をプロジェクト全体から探す</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>r</kbd></th><td>直前のfzf-lua検索を再開する</td></tr>
+                </table>
+                <table>
                   <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>b</kbd></th><td>開いているバッファを探す</td></tr>
                   <tr><th><kbd>Space</kbd><kbd>f</kbd><kbd>h</kbd></th><td>Neovimのヘルプを探す</td></tr>
                   <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>s</kbd></th><td>Gitの変更ファイルを探す</td></tr>
-                </table>
-                <table>
                   <tr><th><kbd>Enter</kbd></th><td>選択した結果を開く</td></tr>
                   <tr><th><kbd>Ctrl-s</kbd></th><td>上下分割で開く</td></tr>
                   <tr><th><kbd>Ctrl-v</kbd></th><td>左右分割で開く</td></tr>
@@ -962,25 +965,62 @@
           <h2>変更内容を確認する</h2>
         </div>
         <div class="grid">
-          <article class="card wide" data-search="git hunk next previous preview blame diff status gitsigns 変更 差分 blame">
+          <article class="card wide" data-search="git status diff staged unstaged untracked fzf fugitive summary stage unstage 変更 差分 一覧">
             <div class="card-header">
-              <h3>Git差分をファイル上で追う</h3>
-              <span class="mode custom">gitsigns</span>
+              <h3>変更一覧とdiffを確認する</h3>
+              <span class="mode custom">fzf-lua / Fugitive</span>
             </div>
             <div class="card-body">
               <div class="grid">
                 <table>
-                  <tr><th><kbd>]c</kbd> / <kbd>[c</kbd></th><td>次 / 前の変更箇所（hunk）へ</td></tr>
-                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>p</kbd></th><td>現在のhunkをプレビュー</td></tr>
-                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>b</kbd></th><td>現在行の詳細なblameを表示</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>s</kbd></th><td>変更・untrackedファイルを一覧し、diffをプレビュー</td></tr>
+                  <tr><th>一覧内 <kbd>←</kbd> / <kbd>→</kbd></th><td>選択ファイルをstage / unstage</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>g</kbd></th><td>FugitiveのGit summaryを開く</td></tr>
+                  <tr><th>Summary内 <kbd>=</kbd></th><td>カーソル下のtrackedファイルのinline diffを開閉</td></tr>
                 </table>
                 <table>
-                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>d</kbd></th><td>現在のバッファとindexとの差分を開く</td></tr>
-                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>s</kbd></th><td>変更ファイルをfzf-luaで選ぶ</td></tr>
-                  <tr><th><kbd>:diffupdate</kbd></th><td>diff表示を更新する</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>d</kbd></th><td>リポジトリ全体のunstaged diffを開く</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>D</kbd></th><td>リポジトリ全体のstaged diffを開く</td></tr>
+                  <tr><th>Summary内 <kbd>s</kbd> / <kbd>u</kbd></th><td>ファイルまたはhunkをstage / unstage</td></tr>
+                  <tr><th>Summary内 <kbd>-</kbd></th><td>stage / unstageを切り替える</td></tr>
                 </table>
               </div>
-              <div class="hint">diffモード中の<kbd>]c</kbd><kbd>[c</kbd>は、Vim標準の次 / 前の差分移動として動きます。</div>
+              <div class="hint"><kbd>Space</kbd><kbd>g</kbd><kbd>d</kbd>の<code>git diff</code>にはuntrackedファイルの内容は含まれません。ファイル名と内容の確認には<kbd>Space</kbd><kbd>g</kbd><kbd>s</kbd>を使います。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="git gitsigns hunk next previous preview inline stage unstage blame 選択 行 ファイル 変更 差分">
+            <div class="card-header">
+              <h3>ファイル上でhunkを確認・stageする</h3>
+              <span class="mode custom">gitsigns</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>]c</kbd> / <kbd>[c</kbd></th><td>次 / 前の変更箇所（hunk）へ</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>p</kbd></th><td>現在のhunkをポップアップでプレビュー</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>i</kbd></th><td>現在のhunkをファイル内にinline表示</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>a</kbd></th><td>現在のhunkをstage</td></tr>
+                <tr><th>Visual <kbd>Space</kbd><kbd>g</kbd><kbd>a</kbd></th><td>選択した行だけをstage</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>A</kbd></th><td>現在のファイル全体をstage</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>u</kbd></th><td>現在のファイル全体をunstage</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>b</kbd></th><td>現在行の詳細なblameを表示</td></tr>
+              </table>
+              <div class="hint">untrackedファイルにもsign columnを表示します。diffモード中の<kbd>]c</kbd><kbd>[c</kbd>はVim標準の差分移動として動きます。</div>
+            </div>
+          </article>
+
+          <article class="card" data-search="git fugitive commit push message save quit コミット プッシュ">
+            <div class="card-header">
+              <h3>commitしてpushする</h3>
+              <span class="mode custom">Fugitive</span>
+            </div>
+            <div class="card-body">
+              <table>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>c</kbd></th><td>commit messageをNeovimで編集する</td></tr>
+                <tr><th>Commit画面 <kbd>:wq</kbd></th><td>messageを保存してcommitを完了する</td></tr>
+                <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>P</kbd></th><td>現在のbranchを非同期でpushする</td></tr>
+              </table>
+              <div class="warning">commit前に<kbd>Space</kbd><kbd>g</kbd><kbd>D</kbd>でstaged diffを最終確認します。</div>
             </div>
           </article>
         </div>
@@ -1155,7 +1195,7 @@
       </section>
 
       <footer class="footer">
-        このページは <code>dot_config/nvim</code> の設定と、インストール済みのNeovim 0.12.4 / プラグインの標準キーマップを基準に作成。更新日: 2026-08-10
+        このページは <code>dot_config/nvim</code> の設定と、インストール済みのNeovim 0.12.4 / プラグインの標準キーマップを基準に作成。更新日: 2026-08-12
       </footer>
     </main>
   </div>
