@@ -1,6 +1,4 @@
 # Pure
-fpath+=("${ZDOTDIR:-$HOME}/pure")
-
 autoload -Uz promptinit
 promptinit
 
