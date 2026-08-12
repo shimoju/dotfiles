@@ -1,4 +1,5 @@
 require("gitsigns").setup({
+  attach_to_untracked = true,
   on_attach = function(bufnr)
     local gitsigns = require("gitsigns")
 
@@ -33,6 +34,5 @@ require("gitsigns").setup({
     map("<leader>gb", function()
       gitsigns.blame_line({ full = true })
     end, "Blame Git line")
-    map("<leader>gd", gitsigns.diffthis, "Diff Git buffer")
   end,
 })

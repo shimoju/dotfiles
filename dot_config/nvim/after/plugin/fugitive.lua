@@ -1,4 +1,5 @@
 vim.keymap.set("n", "<leader>gg", "<Cmd>Git<CR>", { desc = "Git summary" })
+vim.keymap.set("n", "<leader>gd", "<Cmd>Git diff<CR>", { desc = "Git unstaged diff" })
 vim.keymap.set("n", "<leader>gD", "<Cmd>Git diff --staged<CR>", { desc = "Git staged diff" })
 vim.keymap.set("n", "<leader>gc", "<Cmd>Git commit<CR>", { desc = "Git commit" })
 vim.keymap.set("n", "<leader>gP", "<Cmd>Git! push<CR>", { desc = "Git push" })
