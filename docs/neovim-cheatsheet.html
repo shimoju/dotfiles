@@ -965,7 +965,7 @@
           <h2>変更内容を確認する</h2>
         </div>
         <div class="grid">
-          <article class="card wide" data-search="git status diff staged unstaged untracked fzf fugitive summary stage unstage 変更 差分 一覧">
+          <article class="card wide" data-search="git status diff staged unstaged untracked log history patch fzf fugitive summary stage unstage 変更 差分 履歴 一覧">
             <div class="card-header">
               <h3>変更一覧とdiffを確認する</h3>
               <span class="mode custom">fzf-lua / Fugitive</span>
@@ -981,6 +981,7 @@
                 <table>
                   <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>d</kbd></th><td>リポジトリ全体のunstaged diffを開く</td></tr>
                   <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>D</kbd></th><td>リポジトリ全体のstaged diffを開く</td></tr>
+                  <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>l</kbd></th><td>コミット履歴を各commitのpatch付きで開く</td></tr>
                   <tr><th>Summary内 <kbd>s</kbd> / <kbd>u</kbd></th><td>ファイルまたはhunkをstage / unstage</td></tr>
                   <tr><th>Summary内 <kbd>-</kbd></th><td>stage / unstageを切り替える</td></tr>
                 </table>
