@@ -95,9 +95,9 @@
       "version": "9.0.0 - 10.0.0"
     },
     "trouble.nvim": {
-      "rev": "748ca2789044607f19786b1d837044544c55e80a",
+      "rev": "bd67efe408d4816e25e8491cc5ad4088e708a69a",
       "src": "https://github.com/folke/trouble.nvim",
-      "version": "3.0.0 - 4.0.0"
+      "version": "'main'"
     },
     "vim-fugitive": {
       "rev": "3b753cf8c6a4dcde6edee8827d464ba9b8c4a6f0",
