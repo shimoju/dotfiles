@@ -40,7 +40,8 @@
 	co = checkout
 	cob = checkout -b
 	cot = checkout --track
-	com = "!f() { b=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | cut -d/ -f4-); [ -z \"$b\" ] && b=$(git branch --list main master --format=\"%(refname:short)\" | head -n1); git checkout \"$b\"; }; f"
+	default-branch = "!b=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null); b=${b#origin/}; [ -n \"$b\" ] || b=$(git branch --list main master --format='%(refname:short)' | head -n1); [ -n \"$b\" ] && echo \"$b\""
+	com = "!b=$(git default-branch) && git checkout \"$b\""
 	# remote
 	ft = fetch
 	pl = pull
@@ -51,7 +52,7 @@
 	lo = log --oneline
 	# rebase
 	rb = rebase
-	rbm = "!f() { b=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | cut -d/ -f4-); [ -z \"$b\" ] && b=$(git branch --list main master --format=\"%(refname:short)\" | head -n1); git rebase \"$b\"; }; f"
+	rbm = "!b=$(git default-branch) && git rebase \"$b\""
 	rbi = rebase -i
 	rbc = rebase --continue
 	rba = rebase --abort
