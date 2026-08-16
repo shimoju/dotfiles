@@ -1013,16 +1013,18 @@
             </div>
           </article>
 
-          <article class="card" data-search="git fugitive commit push message save quit コミット プッシュ">
+          <article class="card" data-search="git fugitive rhubarb github browse url link commit push message save quit コミット プッシュ URL リンク">
             <div class="card-header">
-              <h3>commitしてpushする</h3>
-              <span class="mode custom">Fugitive</span>
+              <h3>commit・push・GitHubを操作する</h3>
+              <span class="mode custom">Fugitive / rhubarb</span>
             </div>
             <div class="card-body">
               <table>
                 <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>c</kbd></th><td>commit messageをNeovimで編集する</td></tr>
                 <tr><th>Commit画面 <kbd>:wq</kbd></th><td>messageを保存してcommitを完了する</td></tr>
                 <tr><th><kbd>Space</kbd><kbd>g</kbd><kbd>P</kbd></th><td>現在のbranchを非同期でpushする</td></tr>
+                <tr><th><kbd>:GBrowse</kbd></th><td>現在のファイルやcommitをGitHubで開く</td></tr>
+                <tr><th><kbd>:GBrowse!</kbd></th><td>対応するGitHub URLをコピーする。Visual選択では行範囲付き</td></tr>
               </table>
               <div class="warning">commit前に<kbd>Space</kbd><kbd>g</kbd><kbd>D</kbd>でstaged diffを最終確認します。</div>
             </div>

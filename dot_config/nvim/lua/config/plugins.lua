@@ -22,6 +22,7 @@ vim.pack.add({
   },
   { src = "https://github.com/ibhagwan/fzf-lua" },
   { src = "https://github.com/tpope/vim-fugitive" },
+  { src = "https://github.com/tpope/vim-rhubarb" },
   {
     src = "https://github.com/folke/trouble.nvim",
     version = "main",
