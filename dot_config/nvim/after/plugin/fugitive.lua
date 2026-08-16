@@ -19,19 +19,26 @@ local function copy_path(path, kind)
   vim.notify("Copied " .. kind .. " path: " .. path)
 end
 
-vim.keymap.set("n", "<leader>yr", function()
+local function git_relative_file_path()
   local path = current_file_path()
   if not path then
-    return
+    return nil
   end
 
   local worktree = vim.fn.FugitiveWorkTree()
   if worktree == "" then
     vim.notify("Current file is not in a Git work tree", vim.log.levels.WARN)
-    return
+    return nil
   end
 
-  copy_path(vim.fn["fugitive#Path"](path, ""), "relative")
+  return vim.fn["fugitive#Path"](path, "")
+end
+
+vim.keymap.set("n", "<leader>yr", function()
+  local path = git_relative_file_path()
+  if path then
+    copy_path(path, "relative")
+  end
 end, { desc = "Copy Git-relative file path" })
 
 vim.keymap.set("n", "<leader>ya", function()
@@ -40,3 +47,10 @@ vim.keymap.set("n", "<leader>ya", function()
     copy_path(vim.fs.abspath(path), "absolute")
   end
 end, { desc = "Copy absolute file path" })
+
+vim.keymap.set("n", "<leader>yl", function()
+  local path = git_relative_file_path()
+  if path then
+    copy_path(path .. ":" .. vim.api.nvim_win_get_cursor(0)[1], "relative line")
+  end
+end, { desc = "Copy Git-relative file path with line" })
