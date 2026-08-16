@@ -4,3 +4,39 @@ vim.keymap.set("n", "<leader>gD", "<Cmd>Git diff --staged<CR>", { desc = "Git st
 vim.keymap.set("n", "<leader>gl", "<Cmd>Git log -p<CR>", { desc = "Git log with patches" })
 vim.keymap.set("n", "<leader>gc", "<Cmd>Git commit<CR>", { desc = "Git commit" })
 vim.keymap.set("n", "<leader>gP", "<Cmd>Git! push<CR>", { desc = "Git push" })
+
+local function current_file_path()
+  local path = vim.api.nvim_buf_get_name(0)
+  if path == "" or vim.bo.buftype ~= "" then
+    vim.notify("Current buffer is not a file", vim.log.levels.WARN)
+    return nil
+  end
+  return path
+end
+
+local function copy_path(path, kind)
+  vim.fn.setreg("+", path)
+  vim.notify("Copied " .. kind .. " path: " .. path)
+end
+
+vim.keymap.set("n", "<leader>yr", function()
+  local path = current_file_path()
+  if not path then
+    return
+  end
+
+  local worktree = vim.fn.FugitiveWorkTree()
+  if worktree == "" then
+    vim.notify("Current file is not in a Git work tree", vim.log.levels.WARN)
+    return
+  end
+
+  copy_path(vim.fn["fugitive#Path"](path, ""), "relative")
+end, { desc = "Copy Git-relative file path" })
+
+vim.keymap.set("n", "<leader>ya", function()
+  local path = current_file_path()
+  if path then
+    copy_path(vim.fs.abspath(path), "absolute")
+  end
+end, { desc = "Copy absolute file path" })
