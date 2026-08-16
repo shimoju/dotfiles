@@ -30,14 +30,14 @@ remote_image_paste = "ctrl+shift+v"
 
 [[keys.command]]
 key = "prefix+f"
-type = "plugin_action"
-command = "herdr-file-viewer.open-file-viewer"
+type = "shell"
+command = "herdr-open --pane --direction right -- y"
 description = "open file viewer in split"
 
 [[keys.command]]
 key = "prefix+shift+f"
-type = "plugin_action"
-command = "herdr-file-viewer.open-file-viewer-tab"
+type = "shell"
+command = "herdr-open --tab -- y"
 description = "open file viewer in tab"
 
 [[keys.command]]
