@@ -41,6 +41,18 @@ command = "herdr-open --tab -- y"
 description = "open file viewer in tab"
 
 [[keys.command]]
+key = "prefix+u"
+type = "pane"
+command = "gitui"
+description = "open gitui in split"
+
+[[keys.command]]
+key = "prefix+shift+u"
+type = "shell"
+command = "herdr-open --tab -- gitui"
+description = "open gitui in tab"
+
+[[keys.command]]
 key = "prefix+t"
 type = "popup"
 command = "exec \"${SHELL:-sh}\""

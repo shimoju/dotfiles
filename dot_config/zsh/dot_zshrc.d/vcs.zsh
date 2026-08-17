@@ -12,3 +12,6 @@ fi
 alias hd='hunk diff --watch'
 alias hs='hunk diff --watch --staged'
 alias hsh='hunk show'
+
+# gitui
+alias gu='gitui'
