@@ -30,8 +30,8 @@ remote_image_paste = "ctrl+shift+v"
 
 [[keys.command]]
 key = "prefix+y"
-type = "shell"
-command = "herdr-open --pane --direction right -- y"
+type = "pane"
+command = "yazi"
 description = "open file viewer in split"
 
 [[keys.command]]
