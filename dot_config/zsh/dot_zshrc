@@ -34,6 +34,7 @@ setopt EXTENDED_GLOB
 
 # Line editor
 WORDCHARS='*?_-.[]~&;!#$%^(){}<>'
+KEYTIMEOUT=100
 bindkey -e
 # fzf handles history search instead of Ctrl-S's default forward search.
 bindkey -M emacs -r '^S'
