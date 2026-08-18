@@ -34,6 +34,7 @@ keybind = performable:super+alt+arrow_down=goto_split:down
 keybind = performable:super+alt+arrow_up=goto_split:up
 keybind = performable:super+alt+arrow_right=goto_split:right
 keybind = performable:super+shift+enter=toggle_split_zoom
+macos-option-as-alt = left
 macos-titlebar-style = tabs
 mouse-hide-while-typing = true
 theme = Catppuccin Mocha

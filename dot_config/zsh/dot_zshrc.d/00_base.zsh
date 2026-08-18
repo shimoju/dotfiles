@@ -62,8 +62,6 @@ fi
 if (( $+commands[fzf] )); then
   source <(fzf --zsh)
 
-  bindkey -M emacs $'\x1e' fzf-cd-widget
-
   f() {
     local dir
     dir="$(ghq list --full-path | fzf --height "${FZF_TMUX_HEIGHT:-40%}" --min-height 20+ --bind=ctrl-z:ignore --reverse)" || return
