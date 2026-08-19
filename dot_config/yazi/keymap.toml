@@ -1,3 +1,8 @@
+[[mgr.prepend_keymap]]
+on = "T"
+run = "plugin toggle-pane max-preview"
+desc = "Maximize or restore the preview pane"
+
 [[input.prepend_keymap]]
 on = "<Esc>"
 run = "close"
