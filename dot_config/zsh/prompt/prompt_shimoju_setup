@@ -3,6 +3,7 @@ setopt prompt_subst
 
 autoload -Uz add-zsh-hook
 zmodload zsh/datetime
+zmodload zsh/stat
 
 prompt_shimoju_escape() {
   REPLY=${1//\%/%%}
@@ -179,6 +180,113 @@ prompt_shimoju_async_git_status() {
   print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} ${(q)arrows} ${(q)stash_marker}
 }
 
+prompt_shimoju_async_git_aliases() {
+  local generation=$1 workdir=$2 name expansion
+  local -a aliases
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  while read -r name expansion; do
+    if [[ $expansion == *pull* || $expansion == *fetch* ]]; then
+      aliases+=("${name#alias.}")
+    fi
+  done < <(command git config --get-regexp '^alias\.' 2>/dev/null)
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)${(j: :)aliases}}
+}
+
+prompt_shimoju_async_git_fetch() {
+  local generation=$1 workdir=$2 line arrows= success=0
+  local -i ahead=0 behind=0
+  local -a fields
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  if command git rev-parse --is-inside-work-tree &>/dev/null; then
+    export GIT_TERMINAL_PROMPT=0
+    export GIT_ASKPASS=true
+    export GCM_INTERACTIVE=never
+    export SSH_ASKPASS_REQUIRE=never
+    export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes"
+    unset GPG_TTY
+
+    if command git -c gc.auto=0 -c maintenance.auto=0 fetch --quiet </dev/null 2>/dev/null; then
+      success=1
+      while IFS= read -r line; do
+        if [[ $line == '# branch.ab '* ]]; then
+          fields=(${=line})
+          ahead=${fields[3]#+}
+          behind=${fields[4]#-}
+          break
+        fi
+      done < <(
+        GIT_OPTIONAL_LOCKS=0 command git status \
+          --porcelain=v2 --branch --untracked-files=no --no-renames 2>/dev/null
+      )
+      (( behind )) && arrows+='⇣'
+      (( ahead )) && arrows+='⇡'
+    fi
+  fi
+
+  print -r -- ${(q)generation} ${(q)workdir} $success ${(q)arrows}
+}
+
+prompt_shimoju_kube_signature() {
+  (( $+commands[kubectl] )) || { REPLY=; return 1; }
+
+  local config_path signature=${KUBECONFIG-}
+  local -a config_paths file_stat
+  local -A stat_result
+  local -i found=0
+
+  if [[ -n ${KUBECONFIG-} ]]; then
+    config_paths=("${(@s/:/)KUBECONFIG}")
+  else
+    config_paths=("${HOME}/.kube/config")
+  fi
+
+  for config_path in $config_paths; do
+    config_path=${config_path/#\~/$HOME}
+    [[ -r $config_path ]] || continue
+    stat_result=()
+    zstat -H stat_result -- "$config_path" 2>/dev/null || continue
+    signature+="|${config_path}:${stat_result[mtime]}:${stat_result[size]}"
+    found=1
+  done
+
+  (( found )) || { REPLY=; return 1; }
+  REPLY=$signature
+}
+
+prompt_shimoju_async_kube() {
+  local generation=$1 workdir=$2 signature=$3 kubeconfig=$4
+  local output context namespace
+
+  if [[ -n $kubeconfig ]]; then
+    export KUBECONFIG=$kubeconfig
+  else
+    unset KUBECONFIG
+  fi
+
+  output=$(command kubectl config view --minify \
+    --output='jsonpath={.current-context}{"\t"}{.contexts[0].context.namespace}' \
+    2>/dev/null)
+  context=${output%%$'\t'*}
+  if [[ $output == *$'\t'* ]]; then
+    namespace=${output#*$'\t'}
+  fi
+  [[ -n $context && -z $namespace ]] && namespace=default
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)signature} ${(q)context} ${(q)namespace}
+}
+
+prompt_shimoju_async_lower_priority() {
+  if (( $+commands[renice] )); then
+    command renice 10 -p $$ >/dev/null 2>&1 || true
+  fi
+  if (( $+commands[ionice] )); then
+    command ionice -c 3 -p $$ >/dev/null 2>&1 || true
+  fi
+}
+
 prompt_shimoju_clear_git_state() {
   typeset -g prompt_shimoju_git_top=
   typeset -g prompt_shimoju_git_branch=
@@ -188,6 +296,18 @@ prompt_shimoju_clear_git_state() {
   typeset -g prompt_shimoju_git_stash=
   typeset -g prompt_shimoju_git_plain=
   typeset -g prompt_shimoju_git_prompt=
+  typeset -ga prompt_shimoju_fetch_commands=(pull fetch)
+}
+
+prompt_shimoju_update_kube_render() {
+  local plain= prompt=
+  if [[ -n $prompt_shimoju_kube_context ]]; then
+    plain="⎈ ${prompt_shimoju_kube_context}/${prompt_shimoju_kube_namespace}"
+    prompt_shimoju_escape "$plain"
+    prompt="%F{cyan}${REPLY}%f"
+  fi
+  typeset -g prompt_shimoju_kube_plain=$plain
+  typeset -g prompt_shimoju_kube_prompt=$prompt
 }
 
 prompt_shimoju_update_git_render() {
@@ -233,6 +353,7 @@ prompt_shimoju_async_init() {
     return 1
   fi
   async_register_callback prompt_shimoju prompt_shimoju_async_callback
+  async_worker_eval prompt_shimoju prompt_shimoju_async_lower_priority 2>/dev/null || true
   typeset -gi prompt_shimoju_async_ready=1
 }
 
@@ -251,6 +372,24 @@ prompt_shimoju_async_refresh() {
     $prompt_shimoju_generation "$workdir" || return
   async_job prompt_shimoju prompt_shimoju_async_git_status \
     $prompt_shimoju_generation "$workdir" || return
+  async_job prompt_shimoju prompt_shimoju_async_git_aliases \
+    $prompt_shimoju_generation "$workdir" || return
+  async_job prompt_shimoju prompt_shimoju_async_git_fetch \
+    $prompt_shimoju_generation "$workdir" || return
+
+  if prompt_shimoju_kube_signature; then
+    typeset -g prompt_shimoju_kube_current_signature=$REPLY
+    if [[ $prompt_shimoju_kube_loaded_signature != $REPLY ]]; then
+      async_job prompt_shimoju prompt_shimoju_async_kube \
+        $prompt_shimoju_generation "$workdir" "$REPLY" "${KUBECONFIG-}" || return
+    fi
+  else
+    typeset -g prompt_shimoju_kube_current_signature=
+    typeset -g prompt_shimoju_kube_loaded_signature=
+    typeset -g prompt_shimoju_kube_context=
+    typeset -g prompt_shimoju_kube_namespace=
+    prompt_shimoju_update_kube_render
+  fi
 }
 
 prompt_shimoju_async_redraw() {
@@ -301,6 +440,24 @@ prompt_shimoju_async_callback() {
       prompt_shimoju_git_arrows=${result[4]}
       prompt_shimoju_git_stash=${result[5]}
       ;;
+    (prompt_shimoju_async_git_aliases)
+      (( ${#result} == 3 )) || return 0
+      prompt_shimoju_fetch_commands=(pull fetch ${(s: :)result[3]})
+      ;;
+    (prompt_shimoju_async_git_fetch)
+      (( ${#result} == 4 )) || return 0
+      if (( result[3] )); then
+        prompt_shimoju_git_arrows=${result[4]}
+      fi
+      ;;
+    (prompt_shimoju_async_kube)
+      (( ${#result} == 5 )) || return 0
+      [[ ${result[3]} == $prompt_shimoju_kube_current_signature ]] || return 0
+      prompt_shimoju_kube_loaded_signature=${result[3]}
+      prompt_shimoju_kube_context=${result[4]}
+      prompt_shimoju_kube_namespace=${result[5]}
+      prompt_shimoju_update_kube_render
+      ;;
     (*) return 0 ;;
   esac
 
@@ -315,7 +472,27 @@ prompt_shimoju_async_callback() {
   return 0
 }
 
+prompt_shimoju_command_conflicts_with_fetch() {
+  local command_line=$1 token
+  local -i seen_git=0
+  local -a tokens
+  tokens=("${(z)command_line}")
+
+  for token in $tokens; do
+    if (( ! seen_git )); then
+      [[ $token == git || $token == hub ]] && seen_git=1
+      continue
+    fi
+    (( ${prompt_shimoju_fetch_commands[(Ie)$token]} )) && return 0
+  done
+  return 1
+}
+
 prompt_shimoju_preexec() {
+  if (( ${prompt_shimoju_async_ready:-0} )) &&
+      prompt_shimoju_command_conflicts_with_fetch "$2"; then
+    async_flush_jobs prompt_shimoju 2>/dev/null || true
+  fi
   typeset -gF prompt_shimoju_command_started=$EPOCHREALTIME
   prompt_shimoju_set_title "${PWD:t}: $2"
 }
@@ -446,6 +623,11 @@ typeset -g prompt_shimoju_git_plain=
 typeset -g prompt_shimoju_git_prompt=
 typeset -g prompt_shimoju_kube_plain=
 typeset -g prompt_shimoju_kube_prompt=
+typeset -g prompt_shimoju_kube_context=
+typeset -g prompt_shimoju_kube_namespace=
+typeset -g prompt_shimoju_kube_current_signature=
+typeset -g prompt_shimoju_kube_loaded_signature=
+typeset -ga prompt_shimoju_fetch_commands=(pull fetch)
 typeset -gi prompt_shimoju_generation=0
 typeset -gi prompt_shimoju_async_ready=0
 typeset -gi prompt_shimoju_async_restarting=0
