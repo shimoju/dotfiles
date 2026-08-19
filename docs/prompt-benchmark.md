@@ -211,6 +211,29 @@ Typewrittenの通常レイアウトとPureレイアウトの差は測定揺ら�
 
 機能と実装方式を含む評価は[Pure・Geometry・Typewrittenの比較](prompt-comparison.md)を参照。
 
+## Git標準の高速化機能
+
+未追跡ファイルを除外するとGit状態は速くなるが、プロンプトから`?`が欠落する。完全な状態を維持したまま高速化できるか、同じLLVM cloneでGit組み込み[FSMonitor](https://git-scm.com/docs/git-fsmonitor--daemon)と[untracked cache](https://git-scm.com/docs/git-status.html#_untracked_files_and_performance)を比較した。
+
+```sh
+git config --local core.fsmonitor true
+git config --local core.untrackedCache true
+```
+
+各設定を有効にして数回の`git status`でcacheをウォームアップした後、`GIT_OPTIONAL_LOCKS=0`付きで15回測定した。単位はms。
+
+| Git設定 | 未追跡を含むstatus mean | 未追跡除外status mean |
+|---|---:|---:|
+| FSMonitorなし、untracked cacheなし | 475.0 | 136.4 |
+| FSMonitorのみ | 366.6 | 30.6 |
+| FSMonitor + untracked cache | 44.8 | 31.2 |
+
+FSMonitorだけでも、追跡済み182,241ファイルへの`lstat`を中心とする処理は136.4 msから30.6 msへ短縮した。一方、未追跡を含むstatusは366.6 ms残り、未追跡ディレクトリの探索が支配的になった。
+
+untracked cacheを併用すると、未追跡を含む完全statusは44.8 msまで短縮した。未追跡除外との差は約14 msなので、自作プロンプトには未追跡除外設定とslow dirty cacheを設けず、常に完全で最新の状態を非同期取得する。巨大リポジトリではGit側で両機能を有効にする。
+
+FSMonitorはローカルの対応ファイルシステムを前提とし、cacheはウォームアップを必要とする。この測定では使い捨てcloneだけに設定し、測定後にdaemonを停止して設定とindex extensionを元へ戻した。
+
 ## 自作プロンプトを追加するときの合格基準
 
 | 指標 | 目標 |
@@ -238,6 +261,7 @@ Typewrittenの通常レイアウトとPureレイアウトの差は測定揺ら�
 - 最初のcold runとウォームアップ済みの結果を混ぜない。
 - 自動fetchの有無をmetadataに書く。ネットワーク時間をローカルGit状態の指標へ混ぜない。
 - `GIT_OPTIONAL_LOCKS=0`など、実装が設定する環境変数を記録する。
+- `core.fsmonitor`と`core.untrackedCache`の有無、cacheのウォームアップ状態を記録する。
 - untrackedを含めるか、詳細dirtyを使うかを統一する。
 - 非同期プロンプトと同期プロンプトを「全表示完了」だけで比較しない。
 - ベンチマーク用instrumentation自体のコストを、空のcallbackで測っておく。
