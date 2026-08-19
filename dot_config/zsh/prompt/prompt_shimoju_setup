@@ -97,6 +97,224 @@ prompt_shimoju_set_title() {
   print -n -r -- $'\e]0;'"${title}"$'\a'
 }
 
+prompt_shimoju_git_action() {
+  local git_path
+
+  git_path=$(command git rev-parse --git-path rebase-merge 2>/dev/null)
+  if [[ -d $git_path ]]; then
+    [[ -f $git_path/interactive ]] && REPLY='rebase-i' || REPLY='rebase-m'
+    return
+  fi
+
+  git_path=$(command git rev-parse --git-path rebase-apply 2>/dev/null)
+  if [[ -d $git_path ]]; then
+    [[ -f $git_path/rebasing ]] && REPLY='rebase' || REPLY='am'
+    return
+  fi
+
+  git_path=$(command git rev-parse --git-path MERGE_HEAD 2>/dev/null)
+  [[ -f $git_path ]] && { REPLY='merge'; return; }
+  git_path=$(command git rev-parse --git-path CHERRY_PICK_HEAD 2>/dev/null)
+  [[ -f $git_path ]] && { REPLY='cherry-pick'; return; }
+  git_path=$(command git rev-parse --git-path REVERT_HEAD 2>/dev/null)
+  [[ -f $git_path ]] && { REPLY='revert'; return; }
+  git_path=$(command git rev-parse --git-path BISECT_LOG 2>/dev/null)
+  [[ -f $git_path ]] && { REPLY='bisect'; return; }
+  REPLY=
+}
+
+prompt_shimoju_async_git_branch() {
+  local generation=$1 workdir=$2 top branch action
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  top=$(command git rev-parse --show-toplevel 2>/dev/null)
+  if [[ -n $top ]]; then
+    branch=$(command git symbolic-ref --quiet --short HEAD 2>/dev/null) ||
+      branch=$(command git rev-parse --short HEAD 2>/dev/null)
+    prompt_shimoju_git_action
+    action=$REPLY
+  fi
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)top} ${(q)branch} ${(q)action}
+}
+
+prompt_shimoju_async_git_status() {
+  local generation=$1 workdir=$2 line xy
+  local -i unstaged=0 staged=0 untracked=0 ahead=0 behind=0 stash=0
+  local -a fields
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  while IFS= read -r line; do
+    case $line in
+      ('# branch.ab '*)
+        fields=(${=line})
+        ahead=${fields[3]#+}
+        behind=${fields[4]#-}
+        ;;
+      ('# stash '*)
+        fields=(${=line})
+        stash=${fields[3]}
+        ;;
+      ([12u]' '*)
+        xy=${line[3,4]}
+        [[ ${xy[1]} != '.' ]] && staged=1
+        [[ ${xy[2]} != '.' ]] && unstaged=1
+        ;;
+      ('? '*) untracked=1 ;;
+    esac
+  done < <(
+    GIT_OPTIONAL_LOCKS=0 command git status \
+      --porcelain=v2 --branch --show-stash --untracked-files=normal --no-renames \
+      2>/dev/null
+  )
+
+  local dirty= arrows= stash_marker=
+  (( unstaged )) && dirty+='*'
+  (( staged )) && dirty+='+'
+  (( untracked )) && dirty+='?'
+  (( behind )) && arrows+='⇣'
+  (( ahead )) && arrows+='⇡'
+  (( stash )) && stash_marker='≡'
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} ${(q)arrows} ${(q)stash_marker}
+}
+
+prompt_shimoju_clear_git_state() {
+  typeset -g prompt_shimoju_git_top=
+  typeset -g prompt_shimoju_git_branch=
+  typeset -g prompt_shimoju_git_action=
+  typeset -g prompt_shimoju_git_dirty=
+  typeset -g prompt_shimoju_git_arrows=
+  typeset -g prompt_shimoju_git_stash=
+  typeset -g prompt_shimoju_git_plain=
+  typeset -g prompt_shimoju_git_prompt=
+}
+
+prompt_shimoju_update_git_render() {
+  local plain= prompt= escaped
+
+  if [[ -n $prompt_shimoju_git_branch ]]; then
+    plain=$prompt_shimoju_git_branch
+    prompt_shimoju_escape "$prompt_shimoju_git_branch"
+    prompt="%F{green}${REPLY}%f"
+
+    if [[ -n $prompt_shimoju_git_dirty ]]; then
+      plain+=$prompt_shimoju_git_dirty
+      prompt_shimoju_escape "$prompt_shimoju_git_dirty"
+      prompt+="%F{yellow}${REPLY}%f"
+    fi
+    if [[ -n $prompt_shimoju_git_action ]]; then
+      plain+=" ${prompt_shimoju_git_action}"
+      prompt_shimoju_escape "$prompt_shimoju_git_action"
+      prompt+=" %F{magenta}${REPLY}%f"
+    fi
+    if [[ -n $prompt_shimoju_git_arrows ]]; then
+      plain+=" ${prompt_shimoju_git_arrows}"
+      prompt+=" %F{cyan}${prompt_shimoju_git_arrows}%f"
+    fi
+    if [[ -n $prompt_shimoju_git_stash ]]; then
+      plain+=" ${prompt_shimoju_git_stash}"
+      prompt+=" %F{yellow}${prompt_shimoju_git_stash}%f"
+    fi
+  fi
+
+  typeset -g prompt_shimoju_git_plain=$plain
+  typeset -g prompt_shimoju_git_prompt=$prompt
+}
+
+prompt_shimoju_async_init() {
+  if (( ${prompt_shimoju_async_ready:-0} )); then
+    zpty -t prompt_shimoju &>/dev/null && return 0
+    typeset -gi prompt_shimoju_async_ready=0
+  fi
+  (( $+functions[async_start_worker] )) || return 1
+
+  if ! async_start_worker prompt_shimoju -u -n 2>/dev/null; then
+    return 1
+  fi
+  async_register_callback prompt_shimoju prompt_shimoju_async_callback
+  typeset -gi prompt_shimoju_async_ready=1
+}
+
+prompt_shimoju_async_refresh() {
+  local workdir=$PWD
+
+  if [[ ${prompt_shimoju_async_pwd-} != $workdir ]]; then
+    prompt_shimoju_clear_git_state
+    typeset -g prompt_shimoju_async_pwd=$workdir
+  fi
+
+  (( ++prompt_shimoju_generation ))
+  prompt_shimoju_async_init || return
+  async_flush_jobs prompt_shimoju 2>/dev/null || true
+  async_job prompt_shimoju prompt_shimoju_async_git_branch \
+    $prompt_shimoju_generation "$workdir" || return
+  async_job prompt_shimoju prompt_shimoju_async_git_status \
+    $prompt_shimoju_generation "$workdir" || return
+}
+
+prompt_shimoju_async_redraw() {
+  prompt_shimoju_update_git_render
+  prompt_shimoju_render
+  [[ -o zle ]] && zle reset-prompt
+  return 0
+}
+
+prompt_shimoju_async_callback() {
+  setopt localoptions noshwordsplit
+  local job=$1 code=$2 output=$3 next_pending=$6
+  local -a result
+
+  if [[ $job == '[async]' ]]; then
+    if (( code == 2 || code == 3 || code == 130 )); then
+      typeset -gi prompt_shimoju_async_ready=0
+      async_stop_worker prompt_shimoju 2>/dev/null || true
+      prompt_shimoju_clear_git_state
+      if (( ! ${prompt_shimoju_async_restarting:-0} )); then
+        typeset -gi prompt_shimoju_async_restarting=1
+        prompt_shimoju_async_refresh
+        prompt_shimoju_async_restarting=0
+      fi
+      prompt_shimoju_async_redraw
+    fi
+    return 0
+  fi
+
+  result=("${(Q@)${(z)output}}")
+  (( ${#result} >= 2 )) || return 0
+  [[ ${result[1]} == $prompt_shimoju_generation ]] || return 0
+  [[ ${result[2]} == $PWD ]] || return 0
+
+  case $job in
+    (prompt_shimoju_async_git_branch)
+      (( ${#result} == 5 )) || return 0
+      prompt_shimoju_git_top=${result[3]}
+      prompt_shimoju_git_branch=${result[4]}
+      prompt_shimoju_git_action=${result[5]}
+      if [[ -z $prompt_shimoju_git_top ]]; then
+        prompt_shimoju_clear_git_state
+      fi
+      ;;
+    (prompt_shimoju_async_git_status)
+      (( ${#result} == 5 )) || return 0
+      prompt_shimoju_git_dirty=${result[3]}
+      prompt_shimoju_git_arrows=${result[4]}
+      prompt_shimoju_git_stash=${result[5]}
+      ;;
+    (*) return 0 ;;
+  esac
+
+  if (( next_pending )); then
+    typeset -gi prompt_shimoju_async_render_requested=1
+    return
+  fi
+  if (( ${prompt_shimoju_async_render_requested:-0} )); then
+    prompt_shimoju_async_render_requested=0
+  fi
+  prompt_shimoju_async_redraw
+  return 0
+}
+
 prompt_shimoju_preexec() {
   typeset -gF prompt_shimoju_command_started=$EPOCHREALTIME
   prompt_shimoju_set_title "${PWD:t}: $2"
@@ -219,6 +437,7 @@ prompt_shimoju_precmd() {
 
   prompt_shimoju_set_title "${(%):-%~}"
   prompt_shimoju_render
+  prompt_shimoju_async_refresh
 }
 
 prompt_shimoju_detect_identity
@@ -227,6 +446,10 @@ typeset -g prompt_shimoju_git_plain=
 typeset -g prompt_shimoju_git_prompt=
 typeset -g prompt_shimoju_kube_plain=
 typeset -g prompt_shimoju_kube_prompt=
+typeset -gi prompt_shimoju_generation=0
+typeset -gi prompt_shimoju_async_ready=0
+typeset -gi prompt_shimoju_async_restarting=0
+typeset -gi prompt_shimoju_async_render_requested=0
 
 add-zsh-hook -d precmd prompt_shimoju_precmd 2>/dev/null
 add-zsh-hook -d preexec prompt_shimoju_preexec 2>/dev/null

@@ -7,6 +7,9 @@ zsh-users/zsh-completions kind:fpath path:src
 # Add Pure's prompt functions to fpath; prompt setup runs in 02_prompt.zsh.
 sindresorhus/pure kind:fpath
 
+# Persistent worker for the custom prompt's asynchronous status jobs.
+mafredri/zsh-async path:async.zsh
+
 junegunn/fzf-git.sh path:fzf-git.sh
 
 # Order matters: history substring search requires syntax highlighting first,
