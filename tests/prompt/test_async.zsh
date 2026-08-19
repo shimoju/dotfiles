@@ -21,12 +21,24 @@ assert_equal() {
   print -r -- "ok ${_test_count} - ${message}"
 }
 
+assert_not_equal() {
+  local unexpected=$1 actual=$2 message=$3
+  (( ++_test_count ))
+  if [[ $actual == $unexpected ]]; then
+    print -u2 -r -- "not ok ${_test_count} - ${message}"
+    print -u2 -r -- "  unexpected: ${(qqq)unexpected}"
+    _test_failed=1
+    return 0
+  fi
+  print -r -- "ok ${_test_count} - ${message}"
+}
+
 typeset _repo_root=${0:A:h:h:h}
-typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shimoju-async.XXXXXXXX")
+typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-async.XXXXXXXX")
 _fixture_root=${_fixture_root:A}
 
 cleanup() {
-  async_stop_worker prompt_shimoju 2>/dev/null || true
+  async_stop_worker prompt_shsh 2>/dev/null || true
   rm -rf -- "$_fixture_root"
 }
 trap cleanup EXIT
@@ -44,42 +56,42 @@ builtin cd -q -- "$_fixture_root"
 fpath=("${_repo_root}/dot_config/zsh/prompt" $fpath)
 autoload -Uz promptinit
 promptinit
-prompt shimoju
+prompt shsh
 
 repeat 40; do
   sleep 0.05
-  async_process_results prompt_shimoju prompt_shimoju_async_callback 2>/dev/null || true
-  [[ $prompt_shimoju_git_branch == main && $prompt_shimoju_git_dirty == '?' ]] && break
+  async_process_results prompt_shsh prompt_shsh_async_callback 2>/dev/null || true
+  [[ $prompt_shsh_git_branch == main && $prompt_shsh_git_dirty == '?' ]] && break
 done
 
-assert_equal main "$prompt_shimoju_git_branch" 'worker publishes the branch asynchronously'
-assert_equal '?' "$prompt_shimoju_git_dirty" 'worker publishes untracked status asynchronously'
-assert_equal 'main?' "$prompt_shimoju_git_plain" 'callback redraws the combined Git segment'
+assert_equal main "$prompt_shsh_git_branch" 'worker publishes the branch asynchronously'
+assert_equal '?' "$prompt_shsh_git_dirty" 'worker publishes untracked status asynchronously'
+assert_equal 'main?' "$prompt_shsh_git_plain" 'callback redraws the combined Git segment'
 
-typeset _old_generation=$prompt_shimoju_generation
+typeset _old_generation=$prompt_shsh_generation
 builtin cd -q -- "$_repo_root"
-prompt_shimoju_async_refresh
-prompt_shimoju_async_callback prompt_shimoju_async_git_branch 0 \
-  "$(prompt_shimoju_async_git_branch "$_old_generation" "$_fixture_root")" 0 '' 0
-assert_equal '' "$prompt_shimoju_git_branch" 'changing directory clears and rejects the old result'
+prompt_shsh_async_refresh
+prompt_shsh_async_callback prompt_shsh_async_git_branch 0 \
+  "$(prompt_shsh_async_git_branch "$_old_generation" "$_fixture_root")" 0 '' 0
+assert_not_equal main "$prompt_shsh_git_branch" 'changing directory rejects the old result'
 
 repeat 40; do
   sleep 0.05
-  async_process_results prompt_shimoju prompt_shimoju_async_callback 2>/dev/null || true
-  [[ $prompt_shimoju_git_branch == custom-zsh-prompt ]] && break
+  async_process_results prompt_shsh prompt_shsh_async_callback 2>/dev/null || true
+  [[ $prompt_shsh_git_branch == custom-zsh-prompt ]] && break
 done
-assert_equal custom-zsh-prompt "$prompt_shimoju_git_branch" 'worker publishes the new directory after cancellation'
+assert_equal custom-zsh-prompt "$prompt_shsh_git_branch" 'worker publishes the new directory after cancellation'
 
-async_stop_worker prompt_shimoju
-prompt_shimoju_git_branch=
-prompt_shimoju_update_git_render
-prompt_shimoju_async_refresh || true
+async_stop_worker prompt_shsh
+prompt_shsh_git_branch=
+prompt_shsh_update_git_render
+prompt_shsh_async_refresh || true
 repeat 40; do
   sleep 0.05
-  async_process_results prompt_shimoju prompt_shimoju_async_callback 2>/dev/null || true
-  [[ $prompt_shimoju_git_branch == custom-zsh-prompt ]] && break
+  async_process_results prompt_shsh prompt_shsh_async_callback 2>/dev/null || true
+  [[ $prompt_shsh_git_branch == custom-zsh-prompt ]] && break
 done
-assert_equal custom-zsh-prompt "$prompt_shimoju_git_branch" 'worker restarts after an unexpected stop'
+assert_equal custom-zsh-prompt "$prompt_shsh_git_branch" 'worker restarts after an unexpected stop'
 
 print -r -- "1..${_test_count}"
 (( _test_failed == 0 ))

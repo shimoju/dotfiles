@@ -1,8 +1,8 @@
-# Pureの機能一覧と自作プロンプトへの採用判断
+# Pureの機能一覧とShshへの採用判断
 
 ## 前提
 
-対象は[Pure 1.28.3](https://github.com/sindresorhus/pure/tree/v1.28.3)。判断は次のプロンプトを目標にしている。
+対象は[Pure 1.28.3](https://github.com/sindresorhus/pure/tree/v1.28.3)。自作プロンプト名はShsh（shimoju's shell prompt）とし、次の表示を標準状態の目標にしている。
 
 ```text
 user@host ~/src main*+? rebase ⇣⇡ ≡  ⎈ context/namespace      5s 16:23:42
@@ -68,7 +68,7 @@ Pureの2行目には、virtualenv、Conda、Nix shell名が`❯`の前へ入る�
 | [x] | foreground Gitとの競合回避 | pull／fetch実行時にbackground fetchをcancel | lock・通信競合を避けるため採用 |
 | [x] | 認証promptの抑止 | fetchでterminal prompt、SSH password、GPG TTYを無効化 | background jobから端末を壊さないため必須 |
 | [x] | worker障害時の縮退 | 再起動し、失敗時はGit表示を消す | プロンプト入力を最優先する |
-| [x] | workerの低優先度化 | `renice`、利用可能なら`ionice` | 利用可能な機能を自動検出し、UIやビルドへのI/O影響を抑える |
+| [ ] | workerの低優先度化 | `renice`、利用可能なら`ionice` | 初期化用の非同期jobとcancelが競合するため採用しない。Git処理自体を入力経路から外すことを優先する |
 
 ### Git標準機能による高速化
 
@@ -164,7 +164,6 @@ Pureはdirty checkに5秒を超えたリポジトリを遅いと判定し、そ�
 
 - 自動fetch
 - Kubernetes context／namespace
-- workerの優先度調整
 - 狭い端末での省略規則
 
 ### Phase 3: 必要性が確認できたものだけ
@@ -182,6 +181,6 @@ Pureはdirty checkに5秒を超えたリポジトリを遅いと判定し、そ�
 5. workerが失敗しても、Git情報がないだけの通常プロンプトへ縮退する。
 6. 表示結果を独自にcacheせず、Git標準のFSMonitorとuntracked cacheを透過的に利用する。
 
-2026-08-19の再測定では、LLVMでGit状態の完了に約492–496 msかかっても、Pureは中央値1 ms未満で入力可能になった。自作版の最優先KPIも、Git処理の絶対時間ではなく入力可能になるまでの時間とする。
+2026-08-19の再測定では、LLVMでGit状態の完了に約492–496 msかかっても、Pureは中央値1 ms未満で入力可能になった。実装したShshもGit状態の完了が約487–490 msである一方、入力可能になるまでの中央値を約1 msに維持した。最優先KPIはGit処理の絶対時間ではなく、入力可能になるまでの時間である。
 
 GeometryとTypewrittenを含む機能・実装・実測の比較は[Pure・Geometry・Typewrittenの比較](prompt-comparison.md)を参照。比較から、自作版にはTypewrittenの早いbranch jobと詳細status、Geometryの要素配列とKubernetes表示も参考として取り入れる。ただし、非同期処理の世代管理、cancel、縮退動作はPure相当を維持する。

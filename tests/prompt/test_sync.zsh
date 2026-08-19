@@ -42,36 +42,36 @@ typeset _repo_root=${0:A:h:h:h}
 fpath=("${_repo_root}/dot_config/zsh/prompt" $fpath)
 autoload -Uz promptinit
 promptinit
-prompt shimoju
+prompt shsh
 
-prompt_shimoju_human_time 5
+prompt_shsh_human_time 5
 assert_equal 5s "$REPLY" 'formats seconds'
-prompt_shimoju_human_time 3665
+prompt_shsh_human_time 3665
 assert_equal '1h 1m 5s' "$REPLY" 'formats compound duration'
-prompt_shimoju_human_time 90000
+prompt_shsh_human_time 90000
 assert_equal '1d 1h' "$REPLY" 'omits zero duration units'
 
-prompt_shimoju_shorten_path '~/src/project' 20
+prompt_shsh_shorten_path '~/src/project' 20
 assert_equal '~/src/project' "$REPLY" 'keeps a path that fits'
-prompt_shimoju_shorten_path '~/one/two/three/project' 15
+prompt_shsh_shorten_path '~/one/two/three/project' 15
 assert_equal '…/three/project' "$REPLY" 'shortens at component boundaries'
-prompt_shimoju_shorten_path '/a/very-long-component' 8
+prompt_shsh_shorten_path '/a/very-long-component' 8
 assert_equal '…mponent' "$REPLY" 'falls back to tail truncation'
 
-prompt_shimoju_last_status=0
+prompt_shsh_last_status=0
 COLUMNS=80
-prompt_shimoju_render
+prompt_shsh_render
 assert_contains "$PROMPT" $'\n%F{green}❯%f ' 'renders a two-line success prompt'
-assert_equal 8 "${#prompt_shimoju_render_right_plain}" 'renders current time at the right'
-assert_true '(( ${#prompt_shimoju_render_left_plain} + prompt_shimoju_render_padding + ${#prompt_shimoju_render_right_plain} == COLUMNS ))' 'aligns the right segment to the terminal edge'
+assert_equal 8 "${#prompt_shsh_render_right_plain}" 'renders current time at the right'
+assert_true '(( ${#prompt_shsh_render_left_plain} + prompt_shsh_render_padding + ${#prompt_shsh_render_right_plain} == COLUMNS ))' 'aligns the right segment to the terminal edge'
 
-prompt_shimoju_last_status=1
-prompt_shimoju_render
+prompt_shsh_last_status=1
+prompt_shsh_render
 assert_contains "$PROMPT" '%F{red}❯%f ' 'renders failures in red'
 
-prompt_shimoju_command_duration='1m 2s'
+prompt_shsh_command_duration='1m 2s'
 COLUMNS=20
-prompt_shimoju_render
-assert_true '(( ${#prompt_shimoju_render_left_plain} + ${#prompt_shimoju_render_right_plain} <= COLUMNS ))' 'drops low-priority right content in narrow terminals'
+prompt_shsh_render
+assert_true '(( ${#prompt_shsh_render_left_plain} + ${#prompt_shsh_render_right_plain} <= COLUMNS ))' 'drops low-priority right content in narrow terminals'
 
 print -r -- "1..${_test_count}"

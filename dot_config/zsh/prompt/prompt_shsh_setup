@@ -5,11 +5,11 @@ autoload -Uz add-zsh-hook
 zmodload zsh/datetime
 zmodload zsh/stat
 
-prompt_shimoju_escape() {
+prompt_shsh_escape() {
   REPLY=${1//\%/%%}
 }
 
-prompt_shimoju_human_time() {
+prompt_shsh_human_time() {
   local -i elapsed=$1 days hours minutes seconds
   local -a parts
 
@@ -25,7 +25,7 @@ prompt_shimoju_human_time() {
   REPLY="${(j: :)parts}"
 }
 
-prompt_shimoju_shorten_path() {
+prompt_shsh_shorten_path() {
   local original=$1 path_text=$1
   local -i limit=$2
   local prefix= result component candidate
@@ -71,22 +71,22 @@ prompt_shimoju_shorten_path() {
   REPLY=$result
 }
 
-prompt_shimoju_detect_identity() {
-  typeset -g prompt_shimoju_show_identity=0
-  typeset -g prompt_shimoju_identity_color=yellow
+prompt_shsh_detect_identity() {
+  typeset -g prompt_shsh_show_identity=0
+  typeset -g prompt_shsh_identity_color=yellow
 
   if (( EUID == 0 )); then
-    prompt_shimoju_show_identity=1
-    prompt_shimoju_identity_color=red
+    prompt_shsh_show_identity=1
+    prompt_shsh_identity_color=red
   elif [[ -n ${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-} ]]; then
-    prompt_shimoju_show_identity=1
+    prompt_shsh_show_identity=1
   elif [[ -n ${container-}${KUBERNETES_SERVICE_HOST-} ]] ||
       [[ -e /.dockerenv || -e /run/.containerenv ]]; then
-    prompt_shimoju_show_identity=1
+    prompt_shsh_show_identity=1
   fi
 }
 
-prompt_shimoju_set_title() {
+prompt_shsh_set_title() {
   [[ $TERM == dumb || -n ${EMACS-}${INSIDE_EMACS-} ]] && return
   [[ $TTY == /dev/ttyS<-> ]] && return
 
@@ -98,48 +98,52 @@ prompt_shimoju_set_title() {
   print -n -r -- $'\e]0;'"${title}"$'\a'
 }
 
-prompt_shimoju_git_action() {
-  local git_path
+prompt_shsh_git_action() {
+  local -a git_paths
 
-  git_path=$(command git rev-parse --git-path rebase-merge 2>/dev/null)
-  if [[ -d $git_path ]]; then
-    [[ -f $git_path/interactive ]] && REPLY='rebase-i' || REPLY='rebase-m'
+  git_paths=("${(@f)$(command git rev-parse \
+    --git-path rebase-merge \
+    --git-path rebase-apply \
+    --git-path MERGE_HEAD \
+    --git-path CHERRY_PICK_HEAD \
+    --git-path REVERT_HEAD \
+    --git-path BISECT_LOG 2>/dev/null)}")
+  if [[ -d ${git_paths[1]-} ]]; then
+    [[ -f ${git_paths[1]}/interactive ]] && REPLY='rebase-i' || REPLY='rebase-m'
     return
   fi
 
-  git_path=$(command git rev-parse --git-path rebase-apply 2>/dev/null)
-  if [[ -d $git_path ]]; then
-    [[ -f $git_path/rebasing ]] && REPLY='rebase' || REPLY='am'
+  if [[ -d ${git_paths[2]-} ]]; then
+    [[ -f ${git_paths[2]}/rebasing ]] && REPLY='rebase' || REPLY='am'
     return
   fi
 
-  git_path=$(command git rev-parse --git-path MERGE_HEAD 2>/dev/null)
-  [[ -f $git_path ]] && { REPLY='merge'; return; }
-  git_path=$(command git rev-parse --git-path CHERRY_PICK_HEAD 2>/dev/null)
-  [[ -f $git_path ]] && { REPLY='cherry-pick'; return; }
-  git_path=$(command git rev-parse --git-path REVERT_HEAD 2>/dev/null)
-  [[ -f $git_path ]] && { REPLY='revert'; return; }
-  git_path=$(command git rev-parse --git-path BISECT_LOG 2>/dev/null)
-  [[ -f $git_path ]] && { REPLY='bisect'; return; }
+  [[ -f ${git_paths[3]-} ]] && { REPLY='merge'; return; }
+  [[ -f ${git_paths[4]-} ]] && { REPLY='cherry-pick'; return; }
+  [[ -f ${git_paths[5]-} ]] && { REPLY='revert'; return; }
+  [[ -f ${git_paths[6]-} ]] && { REPLY='bisect'; return; }
   REPLY=
 }
 
-prompt_shimoju_async_git_branch() {
+prompt_shsh_async_git_branch() {
   local generation=$1 workdir=$2 top branch action
+  local -a repository
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
-  top=$(command git rev-parse --show-toplevel 2>/dev/null)
+  repository=("${(@f)$(command git rev-parse \
+    --show-toplevel --abbrev-ref HEAD 2>/dev/null)}")
+  top=${repository[1]-}
   if [[ -n $top ]]; then
-    branch=$(command git symbolic-ref --quiet --short HEAD 2>/dev/null) ||
-      branch=$(command git rev-parse --short HEAD 2>/dev/null)
-    prompt_shimoju_git_action
+    branch=${repository[2]-}
+    [[ $branch == HEAD ]] && branch=$(command git rev-parse --short HEAD 2>/dev/null)
+    prompt_shsh_git_action
     action=$REPLY
   fi
 
   print -r -- ${(q)generation} ${(q)workdir} ${(q)top} ${(q)branch} ${(q)action}
 }
 
-prompt_shimoju_async_git_status() {
+prompt_shsh_async_git_status() {
   local generation=$1 workdir=$2 line xy
   local -i unstaged=0 staged=0 untracked=0 ahead=0 behind=0 stash=0
   local -a fields
@@ -180,7 +184,7 @@ prompt_shimoju_async_git_status() {
   print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} ${(q)arrows} ${(q)stash_marker}
 }
 
-prompt_shimoju_async_git_aliases() {
+prompt_shsh_async_git_aliases() {
   local generation=$1 workdir=$2 name expansion
   local -a aliases
 
@@ -194,7 +198,7 @@ prompt_shimoju_async_git_aliases() {
   print -r -- ${(q)generation} ${(q)workdir} ${(q)${(j: :)aliases}}
 }
 
-prompt_shimoju_async_git_fetch() {
+prompt_shsh_async_git_fetch() {
   local generation=$1 workdir=$2 line arrows= success=0
   local -i ahead=0 behind=0
   local -a fields
@@ -229,7 +233,7 @@ prompt_shimoju_async_git_fetch() {
   print -r -- ${(q)generation} ${(q)workdir} $success ${(q)arrows}
 }
 
-prompt_shimoju_kube_signature() {
+prompt_shsh_kube_signature() {
   (( $+commands[kubectl] )) || { REPLY=; return 1; }
 
   local config_path signature=${KUBECONFIG-}
@@ -256,7 +260,7 @@ prompt_shimoju_kube_signature() {
   REPLY=$signature
 }
 
-prompt_shimoju_async_kube() {
+prompt_shsh_async_kube() {
   local generation=$1 workdir=$2 signature=$3 kubeconfig=$4
   local output context namespace
 
@@ -278,201 +282,194 @@ prompt_shimoju_async_kube() {
   print -r -- ${(q)generation} ${(q)workdir} ${(q)signature} ${(q)context} ${(q)namespace}
 }
 
-prompt_shimoju_async_lower_priority() {
-  if (( $+commands[renice] )); then
-    command renice 10 -p $$ >/dev/null 2>&1 || true
-  fi
-  if (( $+commands[ionice] )); then
-    command ionice -c 3 -p $$ >/dev/null 2>&1 || true
-  fi
+prompt_shsh_clear_git_state() {
+  typeset -g prompt_shsh_git_top=
+  typeset -g prompt_shsh_git_branch=
+  typeset -g prompt_shsh_git_action=
+  typeset -g prompt_shsh_git_dirty=
+  typeset -g prompt_shsh_git_arrows=
+  typeset -g prompt_shsh_git_stash=
+  typeset -g prompt_shsh_git_plain=
+  typeset -g prompt_shsh_git_prompt=
+  typeset -ga prompt_shsh_fetch_commands=(pull fetch)
 }
 
-prompt_shimoju_clear_git_state() {
-  typeset -g prompt_shimoju_git_top=
-  typeset -g prompt_shimoju_git_branch=
-  typeset -g prompt_shimoju_git_action=
-  typeset -g prompt_shimoju_git_dirty=
-  typeset -g prompt_shimoju_git_arrows=
-  typeset -g prompt_shimoju_git_stash=
-  typeset -g prompt_shimoju_git_plain=
-  typeset -g prompt_shimoju_git_prompt=
-  typeset -ga prompt_shimoju_fetch_commands=(pull fetch)
-}
-
-prompt_shimoju_update_kube_render() {
+prompt_shsh_update_kube_render() {
   local plain= prompt=
-  if [[ -n $prompt_shimoju_kube_context ]]; then
-    plain="⎈ ${prompt_shimoju_kube_context}/${prompt_shimoju_kube_namespace}"
-    prompt_shimoju_escape "$plain"
+  if [[ -n $prompt_shsh_kube_context ]]; then
+    plain="⎈ ${prompt_shsh_kube_context}/${prompt_shsh_kube_namespace}"
+    prompt_shsh_escape "$plain"
     prompt="%F{cyan}${REPLY}%f"
   fi
-  typeset -g prompt_shimoju_kube_plain=$plain
-  typeset -g prompt_shimoju_kube_prompt=$prompt
+  typeset -g prompt_shsh_kube_plain=$plain
+  typeset -g prompt_shsh_kube_prompt=$prompt
 }
 
-prompt_shimoju_update_git_render() {
+prompt_shsh_update_git_render() {
   local plain= prompt= escaped
 
-  if [[ -n $prompt_shimoju_git_branch ]]; then
-    plain=$prompt_shimoju_git_branch
-    prompt_shimoju_escape "$prompt_shimoju_git_branch"
+  if [[ -n $prompt_shsh_git_branch ]]; then
+    plain=$prompt_shsh_git_branch
+    prompt_shsh_escape "$prompt_shsh_git_branch"
     prompt="%F{green}${REPLY}%f"
 
-    if [[ -n $prompt_shimoju_git_dirty ]]; then
-      plain+=$prompt_shimoju_git_dirty
-      prompt_shimoju_escape "$prompt_shimoju_git_dirty"
+    if [[ -n $prompt_shsh_git_dirty ]]; then
+      plain+=$prompt_shsh_git_dirty
+      prompt_shsh_escape "$prompt_shsh_git_dirty"
       prompt+="%F{yellow}${REPLY}%f"
     fi
-    if [[ -n $prompt_shimoju_git_action ]]; then
-      plain+=" ${prompt_shimoju_git_action}"
-      prompt_shimoju_escape "$prompt_shimoju_git_action"
+    if [[ -n $prompt_shsh_git_action ]]; then
+      plain+=" ${prompt_shsh_git_action}"
+      prompt_shsh_escape "$prompt_shsh_git_action"
       prompt+=" %F{magenta}${REPLY}%f"
     fi
-    if [[ -n $prompt_shimoju_git_arrows ]]; then
-      plain+=" ${prompt_shimoju_git_arrows}"
-      prompt+=" %F{cyan}${prompt_shimoju_git_arrows}%f"
+    if [[ -n $prompt_shsh_git_arrows ]]; then
+      plain+=" ${prompt_shsh_git_arrows}"
+      prompt+=" %F{cyan}${prompt_shsh_git_arrows}%f"
     fi
-    if [[ -n $prompt_shimoju_git_stash ]]; then
-      plain+=" ${prompt_shimoju_git_stash}"
-      prompt+=" %F{yellow}${prompt_shimoju_git_stash}%f"
+    if [[ -n $prompt_shsh_git_stash ]]; then
+      plain+=" ${prompt_shsh_git_stash}"
+      prompt+=" %F{yellow}${prompt_shsh_git_stash}%f"
     fi
   fi
 
-  typeset -g prompt_shimoju_git_plain=$plain
-  typeset -g prompt_shimoju_git_prompt=$prompt
+  typeset -g prompt_shsh_git_plain=$plain
+  typeset -g prompt_shsh_git_prompt=$prompt
 }
 
-prompt_shimoju_async_init() {
-  if (( ${prompt_shimoju_async_ready:-0} )); then
-    zpty -t prompt_shimoju &>/dev/null && return 0
-    typeset -gi prompt_shimoju_async_ready=0
+prompt_shsh_async_init() {
+  if (( ${prompt_shsh_async_ready:-0} )); then
+    zpty -t prompt_shsh &>/dev/null && return 0
+    typeset -gi prompt_shsh_async_ready=0
   fi
   (( $+functions[async_start_worker] )) || return 1
 
-  if ! async_start_worker prompt_shimoju -u -n 2>/dev/null; then
+  if ! async_start_worker prompt_shsh -u -n 2>/dev/null; then
     return 1
   fi
-  async_register_callback prompt_shimoju prompt_shimoju_async_callback
-  async_worker_eval prompt_shimoju prompt_shimoju_async_lower_priority 2>/dev/null || true
-  typeset -gi prompt_shimoju_async_ready=1
+  async_register_callback prompt_shsh prompt_shsh_async_callback
+  typeset -gi prompt_shsh_async_ready=1
 }
 
-prompt_shimoju_async_refresh() {
+prompt_shsh_async_refresh() {
   local workdir=$PWD
 
-  if [[ ${prompt_shimoju_async_pwd-} != $workdir ]]; then
-    prompt_shimoju_clear_git_state
-    typeset -g prompt_shimoju_async_pwd=$workdir
+  if [[ ${prompt_shsh_async_pwd-} != $workdir ]]; then
+    prompt_shsh_clear_git_state
+    typeset -g prompt_shsh_async_pwd=$workdir
   fi
 
-  (( ++prompt_shimoju_generation ))
-  prompt_shimoju_async_init || return
-  async_flush_jobs prompt_shimoju 2>/dev/null || true
-  async_job prompt_shimoju prompt_shimoju_async_git_branch \
-    $prompt_shimoju_generation "$workdir" || return
-  async_job prompt_shimoju prompt_shimoju_async_git_status \
-    $prompt_shimoju_generation "$workdir" || return
-  async_job prompt_shimoju prompt_shimoju_async_git_aliases \
-    $prompt_shimoju_generation "$workdir" || return
-  async_job prompt_shimoju prompt_shimoju_async_git_fetch \
-    $prompt_shimoju_generation "$workdir" || return
+  (( ++prompt_shsh_generation ))
+  if (( ${prompt_shsh_async_ready:-0} )) &&
+      zpty -t prompt_shsh &>/dev/null; then
+    async_flush_jobs prompt_shsh 2>/dev/null || true
+  fi
+  prompt_shsh_async_init || return
+  async_job prompt_shsh prompt_shsh_async_git_branch \
+    $prompt_shsh_generation "$workdir" || return
+  async_job prompt_shsh prompt_shsh_async_git_status \
+    $prompt_shsh_generation "$workdir" || return
+  async_job prompt_shsh prompt_shsh_async_git_aliases \
+    $prompt_shsh_generation "$workdir" || return
+  async_job prompt_shsh prompt_shsh_async_git_fetch \
+    $prompt_shsh_generation "$workdir" || return
 
-  if prompt_shimoju_kube_signature; then
-    typeset -g prompt_shimoju_kube_current_signature=$REPLY
-    if [[ $prompt_shimoju_kube_loaded_signature != $REPLY ]]; then
-      async_job prompt_shimoju prompt_shimoju_async_kube \
-        $prompt_shimoju_generation "$workdir" "$REPLY" "${KUBECONFIG-}" || return
+  if prompt_shsh_kube_signature; then
+    typeset -g prompt_shsh_kube_current_signature=$REPLY
+    if [[ $prompt_shsh_kube_loaded_signature != $REPLY ]]; then
+      async_job prompt_shsh prompt_shsh_async_kube \
+        $prompt_shsh_generation "$workdir" "$REPLY" "${KUBECONFIG-}" || return
     fi
   else
-    typeset -g prompt_shimoju_kube_current_signature=
-    typeset -g prompt_shimoju_kube_loaded_signature=
-    typeset -g prompt_shimoju_kube_context=
-    typeset -g prompt_shimoju_kube_namespace=
-    prompt_shimoju_update_kube_render
+    typeset -g prompt_shsh_kube_current_signature=
+    typeset -g prompt_shsh_kube_loaded_signature=
+    typeset -g prompt_shsh_kube_context=
+    typeset -g prompt_shsh_kube_namespace=
+    prompt_shsh_update_kube_render
   fi
 }
 
-prompt_shimoju_async_redraw() {
-  prompt_shimoju_update_git_render
-  prompt_shimoju_render
+prompt_shsh_async_redraw() {
+  prompt_shsh_update_git_render
+  prompt_shsh_render
   [[ -o zle ]] && zle reset-prompt
   return 0
 }
 
-prompt_shimoju_async_callback() {
+prompt_shsh_async_callback() {
   setopt localoptions noshwordsplit
   local job=$1 code=$2 output=$3 next_pending=$6
   local -a result
 
   if [[ $job == '[async]' ]]; then
     if (( code == 2 || code == 3 || code == 130 )); then
-      typeset -gi prompt_shimoju_async_ready=0
-      async_stop_worker prompt_shimoju 2>/dev/null || true
-      prompt_shimoju_clear_git_state
-      if (( ! ${prompt_shimoju_async_restarting:-0} )); then
-        typeset -gi prompt_shimoju_async_restarting=1
-        prompt_shimoju_async_refresh
-        prompt_shimoju_async_restarting=0
+      typeset -gi prompt_shsh_async_ready=0
+      async_stop_worker prompt_shsh 2>/dev/null || true
+      prompt_shsh_clear_git_state
+      if (( ! ${prompt_shsh_async_restarting:-0} )); then
+        typeset -gi prompt_shsh_async_restarting=1
+        prompt_shsh_async_refresh
+        prompt_shsh_async_restarting=0
       fi
-      prompt_shimoju_async_redraw
+      prompt_shsh_async_redraw
     fi
     return 0
   fi
 
   result=("${(Q@)${(z)output}}")
   (( ${#result} >= 2 )) || return 0
-  [[ ${result[1]} == $prompt_shimoju_generation ]] || return 0
+  [[ ${result[1]} == $prompt_shsh_generation ]] || return 0
   [[ ${result[2]} == $PWD ]] || return 0
 
   case $job in
-    (prompt_shimoju_async_git_branch)
+    (prompt_shsh_async_git_branch)
       (( ${#result} == 5 )) || return 0
-      prompt_shimoju_git_top=${result[3]}
-      prompt_shimoju_git_branch=${result[4]}
-      prompt_shimoju_git_action=${result[5]}
-      if [[ -z $prompt_shimoju_git_top ]]; then
-        prompt_shimoju_clear_git_state
+      prompt_shsh_git_top=${result[3]}
+      prompt_shsh_git_branch=${result[4]}
+      prompt_shsh_git_action=${result[5]}
+      if [[ -z $prompt_shsh_git_top ]]; then
+        prompt_shsh_clear_git_state
       fi
       ;;
-    (prompt_shimoju_async_git_status)
+    (prompt_shsh_async_git_status)
       (( ${#result} == 5 )) || return 0
-      prompt_shimoju_git_dirty=${result[3]}
-      prompt_shimoju_git_arrows=${result[4]}
-      prompt_shimoju_git_stash=${result[5]}
+      prompt_shsh_git_dirty=${result[3]}
+      prompt_shsh_git_arrows=${result[4]}
+      prompt_shsh_git_stash=${result[5]}
       ;;
-    (prompt_shimoju_async_git_aliases)
+    (prompt_shsh_async_git_aliases)
       (( ${#result} == 3 )) || return 0
-      prompt_shimoju_fetch_commands=(pull fetch ${(s: :)result[3]})
+      prompt_shsh_fetch_commands=(pull fetch ${(s: :)result[3]})
       ;;
-    (prompt_shimoju_async_git_fetch)
+    (prompt_shsh_async_git_fetch)
       (( ${#result} == 4 )) || return 0
       if (( result[3] )); then
-        prompt_shimoju_git_arrows=${result[4]}
+        prompt_shsh_git_arrows=${result[4]}
       fi
       ;;
-    (prompt_shimoju_async_kube)
+    (prompt_shsh_async_kube)
       (( ${#result} == 5 )) || return 0
-      [[ ${result[3]} == $prompt_shimoju_kube_current_signature ]] || return 0
-      prompt_shimoju_kube_loaded_signature=${result[3]}
-      prompt_shimoju_kube_context=${result[4]}
-      prompt_shimoju_kube_namespace=${result[5]}
-      prompt_shimoju_update_kube_render
+      [[ ${result[3]} == $prompt_shsh_kube_current_signature ]] || return 0
+      prompt_shsh_kube_loaded_signature=${result[3]}
+      prompt_shsh_kube_context=${result[4]}
+      prompt_shsh_kube_namespace=${result[5]}
+      prompt_shsh_update_kube_render
       ;;
     (*) return 0 ;;
   esac
 
   if (( next_pending )); then
-    typeset -gi prompt_shimoju_async_render_requested=1
+    typeset -gi prompt_shsh_async_render_requested=1
     return
   fi
-  if (( ${prompt_shimoju_async_render_requested:-0} )); then
-    prompt_shimoju_async_render_requested=0
+  if (( ${prompt_shsh_async_render_requested:-0} )); then
+    prompt_shsh_async_render_requested=0
   fi
-  prompt_shimoju_async_redraw
+  prompt_shsh_async_redraw
   return 0
 }
 
-prompt_shimoju_command_conflicts_with_fetch() {
+prompt_shsh_command_conflicts_with_fetch() {
   local command_line=$1 token
   local -i seen_git=0
   local -a tokens
@@ -483,21 +480,21 @@ prompt_shimoju_command_conflicts_with_fetch() {
       [[ $token == git || $token == hub ]] && seen_git=1
       continue
     fi
-    (( ${prompt_shimoju_fetch_commands[(Ie)$token]} )) && return 0
+    (( ${prompt_shsh_fetch_commands[(Ie)$token]} )) && return 0
   done
   return 1
 }
 
-prompt_shimoju_preexec() {
-  if (( ${prompt_shimoju_async_ready:-0} )) &&
-      prompt_shimoju_command_conflicts_with_fetch "$2"; then
-    async_flush_jobs prompt_shimoju 2>/dev/null || true
+prompt_shsh_preexec() {
+  if (( ${prompt_shsh_async_ready:-0} )) &&
+      prompt_shsh_command_conflicts_with_fetch "$2"; then
+    async_flush_jobs prompt_shsh 2>/dev/null || true
   fi
-  typeset -gF prompt_shimoju_command_started=$EPOCHREALTIME
-  prompt_shimoju_set_title "${PWD:t}: $2"
+  typeset -gF prompt_shsh_command_started=$EPOCHREALTIME
+  prompt_shsh_set_title "${PWD:t}: $2"
 }
 
-prompt_shimoju_render() {
+prompt_shsh_render() {
   setopt localoptions noshwordsplit
 
   local path_text=${(%):-%~}
@@ -518,26 +515,26 @@ prompt_shimoju_render() {
     prefix_prompt+=($suspended_prompt)
   fi
 
-  if (( prompt_shimoju_show_identity )); then
+  if (( prompt_shsh_show_identity )); then
     identity_plain=${(%):-%n@%m}
-    prompt_shimoju_escape "$identity_plain"
-    identity_prompt="%F{${prompt_shimoju_identity_color}}${REPLY}%f"
+    prompt_shsh_escape "$identity_plain"
+    identity_prompt="%F{${prompt_shsh_identity_color}}${REPLY}%f"
     prefix_plain+=($identity_plain)
     prefix_prompt+=($identity_prompt)
   fi
 
-  if [[ -n ${prompt_shimoju_git_plain-} ]]; then
-    suffix_plain+=("$prompt_shimoju_git_plain")
-    suffix_prompt+=("$prompt_shimoju_git_prompt")
+  if [[ -n ${prompt_shsh_git_plain-} ]]; then
+    suffix_plain+=("$prompt_shsh_git_plain")
+    suffix_prompt+=("$prompt_shsh_git_prompt")
   fi
-  if [[ -n ${prompt_shimoju_kube_plain-} ]]; then
-    suffix_plain+=("$prompt_shimoju_kube_plain")
-    suffix_prompt+=("$prompt_shimoju_kube_prompt")
+  if [[ -n ${prompt_shsh_kube_plain-} ]]; then
+    suffix_plain+=("$prompt_shsh_kube_plain")
+    suffix_prompt+=("$prompt_shsh_kube_prompt")
   fi
 
-  if [[ -n ${prompt_shimoju_command_duration-} ]]; then
-    duration_plain=$prompt_shimoju_command_duration
-    prompt_shimoju_escape "$duration_plain"
+  if [[ -n ${prompt_shsh_command_duration-} ]]; then
+    duration_plain=$prompt_shsh_command_duration
+    prompt_shsh_escape "$duration_plain"
     duration_prompt="%F{yellow}${REPLY}%f"
   fi
 
@@ -568,9 +565,9 @@ prompt_shimoju_render() {
   fi
 
   (( path_limit < 1 )) && path_limit=1
-  prompt_shimoju_shorten_path "$path_text" $path_limit
+  prompt_shsh_shorten_path "$path_text" $path_limit
   path_text=$REPLY
-  prompt_shimoju_escape "$path_text"
+  prompt_shsh_escape "$path_text"
   path_prompt="%F{blue}${REPLY}%f"
 
   local -a all_plain all_prompt
@@ -588,57 +585,57 @@ prompt_shimoju_render() {
     separator=
   fi
 
-  typeset -g prompt_shimoju_render_left_plain=$left_plain
-  typeset -g prompt_shimoju_render_right_plain=$right_plain
-  typeset -gi prompt_shimoju_render_padding=$padding
+  typeset -g prompt_shsh_render_left_plain=$left_plain
+  typeset -g prompt_shsh_render_right_plain=$right_plain
+  typeset -gi prompt_shsh_render_padding=$padding
 
   local indicator_color=green
-  (( prompt_shimoju_last_status )) && indicator_color=red
+  (( prompt_shsh_last_status )) && indicator_color=red
   PROMPT="${left_prompt}${separator}${right_prompt}"$'\n'"%F{${indicator_color}}❯%f "
   RPROMPT=
 }
 
-prompt_shimoju_precmd() {
+prompt_shsh_precmd() {
   local -i last_status=$?
-  typeset -gi prompt_shimoju_last_status=$last_status
-  typeset -g prompt_shimoju_command_duration=
+  typeset -gi prompt_shsh_last_status=$last_status
+  typeset -g prompt_shsh_command_duration=
 
-  if [[ -n ${prompt_shimoju_command_started-} ]]; then
-    local -i elapsed=$(( EPOCHREALTIME - prompt_shimoju_command_started ))
+  if [[ -n ${prompt_shsh_command_started-} ]]; then
+    local -i elapsed=$(( EPOCHREALTIME - prompt_shsh_command_started ))
     if (( elapsed > 5 )); then
-      prompt_shimoju_human_time $elapsed
-      prompt_shimoju_command_duration=$REPLY
+      prompt_shsh_human_time $elapsed
+      prompt_shsh_command_duration=$REPLY
     fi
-    unset prompt_shimoju_command_started
+    unset prompt_shsh_command_started
   fi
 
-  prompt_shimoju_set_title "${(%):-%~}"
-  prompt_shimoju_render
-  prompt_shimoju_async_refresh
+  prompt_shsh_set_title "${(%):-%~}"
+  prompt_shsh_render
+  prompt_shsh_async_refresh
 }
 
-prompt_shimoju_detect_identity
-typeset -gi prompt_shimoju_last_status=0
-typeset -g prompt_shimoju_git_plain=
-typeset -g prompt_shimoju_git_prompt=
-typeset -g prompt_shimoju_kube_plain=
-typeset -g prompt_shimoju_kube_prompt=
-typeset -g prompt_shimoju_kube_context=
-typeset -g prompt_shimoju_kube_namespace=
-typeset -g prompt_shimoju_kube_current_signature=
-typeset -g prompt_shimoju_kube_loaded_signature=
-typeset -ga prompt_shimoju_fetch_commands=(pull fetch)
-typeset -gi prompt_shimoju_generation=0
-typeset -gi prompt_shimoju_async_ready=0
-typeset -gi prompt_shimoju_async_restarting=0
-typeset -gi prompt_shimoju_async_render_requested=0
+prompt_shsh_detect_identity
+typeset -gi prompt_shsh_last_status=0
+typeset -g prompt_shsh_git_plain=
+typeset -g prompt_shsh_git_prompt=
+typeset -g prompt_shsh_kube_plain=
+typeset -g prompt_shsh_kube_prompt=
+typeset -g prompt_shsh_kube_context=
+typeset -g prompt_shsh_kube_namespace=
+typeset -g prompt_shsh_kube_current_signature=
+typeset -g prompt_shsh_kube_loaded_signature=
+typeset -ga prompt_shsh_fetch_commands=(pull fetch)
+typeset -gi prompt_shsh_generation=0
+typeset -gi prompt_shsh_async_ready=0
+typeset -gi prompt_shsh_async_restarting=0
+typeset -gi prompt_shsh_async_render_requested=0
 
-add-zsh-hook -d precmd prompt_shimoju_precmd 2>/dev/null
-add-zsh-hook -d preexec prompt_shimoju_preexec 2>/dev/null
-add-zsh-hook precmd prompt_shimoju_precmd
-add-zsh-hook preexec prompt_shimoju_preexec
+add-zsh-hook -d precmd prompt_shsh_precmd 2>/dev/null
+add-zsh-hook -d preexec prompt_shsh_preexec 2>/dev/null
+add-zsh-hook precmd prompt_shsh_precmd
+add-zsh-hook preexec prompt_shsh_preexec
 
 PROMPT2='%F{242}… %(1_.%_ .%_)%f%(?.%F{green}.%F{red})❯%f '
 PROMPT4='%F{yellow}%e%f %F{blue}%x%f%F{242}:%I @ %f%F{blue}%N%f%F{242}:%i >%f '
 
-prompt_shimoju_precmd
+prompt_shsh_precmd

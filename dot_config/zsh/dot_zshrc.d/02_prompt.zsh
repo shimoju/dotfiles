@@ -1,10 +1,9 @@
-# Pure
+# Shsh prompt
+_prompt_dir="${ZDOTDIR:-$HOME}/prompt"
+fpath=("$_prompt_dir" $fpath)
+
 autoload -Uz promptinit
 promptinit
+prompt shsh
 
-zstyle ':prompt:pure:environment:virtualenv' show no
-zstyle ':prompt:pure:environment:nix-shell' show no
-zstyle ':prompt:pure:git:dirty' detailed yes
-zstyle ':prompt:pure:git:stash' show yes
-
-prompt pure
+unset _prompt_dir

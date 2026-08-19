@@ -97,6 +97,8 @@ LLVMのshallow clone、clean／dirty各15回の中央値。単位はms。
 |---|---:|---:|---:|
 | Pure clean | 0.927 | 71.583 | 495.530 |
 | Pure dirty | 0.860 | 69.661 | 491.888 |
+| Shsh clean | 1.089 | 18.707 | 486.956 |
+| Shsh dirty | 1.039 | 18.444 | 489.621 |
 | Geometry clean | 13.904 | 一括 | 829.090 |
 | Geometry dirty | 13.612 | 一括 | 340.386 |
 | Typewritten default clean | 16.708 | 27.842 | 545.852 |
@@ -107,6 +109,8 @@ LLVMのshallow clone、clean／dirty各15回の中央値。単位はms。
 Geometryのdirty値がcleanより速いのは、追跡済み変更を`git diff-index`で発見して後段を短絡したためである。未追跡ファイルだけのdirtyでは同じ短絡が起こらないので、「dirtyなら常に速い」という結果ではない。
 
 Typewrittenのdefaultと`pure`はほぼ同じ結果だった。Pure風の2行レイアウトを選ぶこと自体は性能上の懸念にならない。
+
+ShshはPure相当の入力開始時間とGit状態完了時間を維持しながら、branch表示を約18–19 msまで短縮した。軽いbranch jobと重いstatus jobを分離し、同期側ではGitコマンドを実行しない設計が狙いどおり機能している。
 
 ## メリット・デメリット
 
@@ -160,15 +164,17 @@ Typewrittenのdefaultと`pure`はほぼ同じ結果だった。Pure風の2行レ
 - prefix functionは同期実行なので、重い外部コマンドを置くと体感速度が悪化する
 - 世代番号と`PWD`による古いcallbackの検証がない
 
-## 自作プロンプトへ取り入れる設計
+## Shshへ取り入れた設計
 
-Pureを土台に、他2つの良い部分を限定的に取り入れる。
+Pureを土台に、他2つの良い部分を限定的に取り入れた。
 
-1. Pureからworker lifecycle、世代管理、cancel、縮退動作、低優先度化、自動fetchを採る。
+1. Pureからworker lifecycle、世代管理、cancel、縮退動作、自動fetchを採る。
 2. Typewrittenのようにbranchを独立した軽いjobで先行表示し、詳細dirtyは後から反映する。
-3. Geometryのように表示要素を小さな関数の配列として組み替えられるようにする。
-4. KubernetesはGeometryの表示責務を参考にするが、取得は非同期またはキャッシュ経由にする。
+3. 1行目の要素を状態ごとに組み立て、端末幅が足りない場合は右側の低優先度要素から省略する。
+4. KubernetesはGeometryの表示責務を参考にし、ローカルkubeconfigの変更時だけ非同期取得する。
 5. Geometryのclean時の二重走査と、Typewrittenの同期Git判定・多数の補助processは避ける。
+
+workerの`renice`／`ionice`は採用しなかった。初期化用jobと次のprompt refreshによるcancelが競合し、workerが結果を返さないタイミング依存を実測で確認したためである。通常優先度でも処理は非同期で、入力開始時間は約1 msに収まっている。
 
 採用順位は次の通り。
 

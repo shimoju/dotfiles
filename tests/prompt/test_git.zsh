@@ -18,14 +18,14 @@ assert_equal() {
 }
 
 typeset _repo_root=${0:A:h:h:h}
-typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shimoju-git.XXXXXXXX")
+typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-git.XXXXXXXX")
 _fixture_root=${_fixture_root:A}
 trap 'rm -rf -- "$_fixture_root"' EXIT
 
 fpath=("${_repo_root}/dot_config/zsh/prompt" $fpath)
 autoload -Uz promptinit
 promptinit
-prompt shimoju
+prompt shsh
 
 command git -C "$_fixture_root" init -q -b main
 command git -C "$_fixture_root" config user.name test
@@ -52,34 +52,34 @@ command git -C "$_fixture_root" add staged
 print -r -- untracked > "$_fixture_root/untracked"
 
 typeset -a result
-result=("${(Q@)${(z)$(prompt_shimoju_async_git_branch 7 "$_fixture_root")}}")
+result=("${(Q@)${(z)$(prompt_shsh_async_git_branch 7 "$_fixture_root")}}")
 assert_equal 7 "${result[1]}" 'branch result includes its generation'
 assert_equal "$_fixture_root" "${result[2]}" 'branch result includes its working directory'
 assert_equal main "${result[4]}" 'reports the current branch'
 
-result=("${(Q@)${(z)$(prompt_shimoju_async_git_status 7 "$_fixture_root")}}")
+result=("${(Q@)${(z)$(prompt_shsh_async_git_status 7 "$_fixture_root")}}")
 assert_equal '*+?' "${result[3]}" 'reports unstaged, staged, and untracked changes'
 assert_equal '⇣⇡' "${result[4]}" 'reports diverged upstream state'
 assert_equal '≡' "${result[5]}" 'reports a stash'
 
-prompt_shimoju_generation=8
-prompt_shimoju_git_branch=keep
-prompt_shimoju_async_callback prompt_shimoju_async_git_branch 0 \
-  "$(prompt_shimoju_async_git_branch 7 "$_fixture_root")" 0 '' 0
-assert_equal keep "$prompt_shimoju_git_branch" 'rejects a stale generation'
+prompt_shsh_generation=8
+prompt_shsh_git_branch=keep
+prompt_shsh_async_callback prompt_shsh_async_git_branch 0 \
+  "$(prompt_shsh_async_git_branch 7 "$_fixture_root")" 0 '' 0
+assert_equal keep "$prompt_shsh_git_branch" 'rejects a stale generation'
 
 builtin cd -q -- "$_fixture_root"
-prompt_shimoju_generation=7
-prompt_shimoju_async_callback prompt_shimoju_async_git_branch 0 \
-  "$(prompt_shimoju_async_git_branch 7 "$_fixture_root")" 0 '' 0
-assert_equal main "$prompt_shimoju_git_branch" 'accepts the current branch generation'
-prompt_shimoju_async_callback prompt_shimoju_async_git_status 0 \
-  "$(prompt_shimoju_async_git_status 7 "$_fixture_root")" 0 '' 0
-assert_equal 'main*+? ⇣⇡ ≡' "$prompt_shimoju_git_plain" 'builds a unified Git segment'
+prompt_shsh_generation=7
+prompt_shsh_async_callback prompt_shsh_async_git_branch 0 \
+  "$(prompt_shsh_async_git_branch 7 "$_fixture_root")" 0 '' 0
+assert_equal main "$prompt_shsh_git_branch" 'accepts the current branch generation'
+prompt_shsh_async_callback prompt_shsh_async_git_status 0 \
+  "$(prompt_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
+assert_equal 'main*+? ⇣⇡ ≡' "$prompt_shsh_git_plain" 'builds a unified Git segment'
 
 mkdir -p "$_fixture_root/.git/rebase-merge"
 : > "$_fixture_root/.git/rebase-merge/interactive"
-result=("${(Q@)${(z)$(prompt_shimoju_async_git_branch 7 "$_fixture_root")}}")
+result=("${(Q@)${(z)$(prompt_shsh_async_git_branch 7 "$_fixture_root")}}")
 assert_equal rebase-i "${result[5]}" 'reports an interactive rebase action'
 
 print -r -- "1..${_test_count}"

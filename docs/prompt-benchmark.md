@@ -23,6 +23,7 @@
 | Pure | 1.28.3、commit `89c9e30` |
 | Geometry | commit `0f82c56` |
 | Typewritten | 1.5.2、commit `06f8575` |
+| Shsh | このリポジトリの`custom-zsh-prompt`ブランチ |
 | 測定回数 | clean／dirtyそれぞれ15回 |
 | リポジトリ | `llvm/llvm-project`のshallow clone |
 | リポジトリcommit | `6c206e3` |
@@ -172,6 +173,7 @@ worker_gitᵢ     = Wᵢ
 - GeometryとTypewritten通常レイアウトはデフォルト設定を使った。
 - Typewritten Pureレイアウトは`TYPEWRITTEN_PROMPT_LAYOUT=pure`だけを追加した。
 - GeometryはGit情報を右プロンプトの1ジョブでまとめて返すため、独立したブランチ表示時間とworker内Git計算時間を記録できない。
+- Shshは実運用と同じ`zsh-async`の読み込み順序を使った。ネットワーク揺らぎを除くため、自動fetch関数だけを測定用ハーネス内で成功するno-opへ差し替えた。公開設定は追加していない。
 
 ## 今回の結果
 
@@ -182,6 +184,7 @@ worker_gitᵢ     = Wᵢ
 | 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
 |---|---:|---:|---:|---:|
 | Pure | 0.927 / 1.700 | 71.583 / 119.023 | 495.530 / 544.461 | 491.690 / 497.967 |
+| Shsh | 1.089 / 6.200 | 18.707 / 33.802 | 486.956 / 496.626 | 483.533 / 492.028 |
 | Geometry | 13.904 / 22.175 | — | 829.090 / 866.114 | — |
 | Typewritten default | 16.708 / 31.010 | 27.842 / 50.044 | 545.852 / 763.199 | 525.417 / 726.512 |
 | Typewritten `pure` | 16.644 / 31.872 | 27.891 / 50.673 | 544.943 / 780.446 | 524.516 / 743.121 |
@@ -193,6 +196,7 @@ worker_gitᵢ     = Wᵢ
 | 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
 |---|---:|---:|---:|---:|
 | Pure | 0.860 / 2.092 | 69.661 / 123.845 | 491.888 / 533.214 | 488.134 / 499.109 |
+| Shsh | 1.039 / 4.612 | 18.444 / 30.552 | 489.621 / 499.976 | 486.251 / 493.766 |
 | Geometry | 13.612 / 22.480 | — | 340.386 / 352.301 | — |
 | Typewritten default | 16.226 / 28.275 | 27.096 / 45.878 | 544.338 / 761.721 | 524.034 / 718.238 |
 | Typewritten `pure` | 16.530 / 34.066 | 27.353 / 51.498 | 544.290 / 776.590 | 523.997 / 724.258 |
@@ -203,6 +207,7 @@ Typewrittenの通常レイアウトとPureレイアウトの差は測定揺ら�
 
 - 約500 msかかるGit状態の完了を待たず、Pureは中央値1 ms未満で入力可能になっている。これがPureの体感速度の中心である。
 - Pureのブランチは約70–72 msで先に表示され、dirtyは約492–496 msで後から追加される。自作版でも段階表示を維持したい。
+- Shshは約1 msで入力可能になり、branchを約18–19 ms、完全なGit状態を約487–490 msで表示した。初期表示とGit完了はPureと同等で、branchはPureより早かった。
 - cleanとdirtyで初期表示はほぼ変わらない。Gitの重さがZLEの入力開始から切り離されている。
 - Typewrittenはブランチを約27–28 msで表示し、この指標だけならPureより速い。一方、同期処理を含む初期表示は約16–17 ms、Git状態完了は約544–546 msだった。
 - GeometryのGit表示は段階表示されない。cleanでは約829 ms、追跡済みdirtyでは約340 msとなった。これはdirty時に`git diff-index --quiet HEAD`で短絡し、clean時には続けて`git status --porcelain --ignore-submodules`を実行する実装による。未追跡だけのdirtyも後段まで進むため、このdirty値を一般化しない。
@@ -234,7 +239,7 @@ untracked cacheを併用すると、未追跡を含む完全statusは44.8 msま�
 
 FSMonitorはローカルの対応ファイルシステムを前提とし、cacheはウォームアップを必要とする。この測定では使い捨てcloneだけに設定し、測定後にdaemonを停止して設定とindex extensionを元へ戻した。
 
-## 自作プロンプトを追加するときの合格基準
+## Shshの合格基準と結果
 
 | 指標 | 目標 |
 |---|---:|
@@ -246,12 +251,7 @@ FSMonitorはローカルの対応ファイルシステムを前提とし、cache
 | `cd`後の古い結果混入 | なし |
 | worker異常時 | Git表示なしで入力継続 |
 
-結果表へ次の行を追加する。
-
-```markdown
-| 自作 clean | TODO | TODO | TODO | TODO |
-| 自作 dirty (`*?`) | TODO | TODO | TODO | TODO |
-```
+15回の実測ではclean／dirtyとも全基準を満たした。入力可能になるまでの中央値は1.089 ms以下、p95は6.200 ms以下だった。branch中央値はPureの約26%、Git状態完了中央値はPureの約98–100%である。
 
 速度だけでなく、実行中に文字入力、履歴移動、補完、`Ctrl-C`を試し、非同期再描画が編集バッファやカーソル位置を壊さないことも確認する。
 
