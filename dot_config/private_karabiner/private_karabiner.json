@@ -47,6 +47,10 @@
                     },
                     "simple_modifications": [
                         {
+                            "from": { "key_code": "japanese_pc_katakana" },
+                            "to": [{ "key_code": "right_option" }]
+                        },
+                        {
                             "from": { "key_code": "japanese_pc_nfer" },
                             "to": [{ "key_code": "japanese_eisuu" }]
                         },
