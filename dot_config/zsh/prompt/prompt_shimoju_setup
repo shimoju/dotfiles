@@ -1,0 +1,239 @@
+emulate -L zsh
+setopt prompt_subst
+
+autoload -Uz add-zsh-hook
+zmodload zsh/datetime
+
+prompt_shimoju_escape() {
+  REPLY=${1//\%/%%}
+}
+
+prompt_shimoju_human_time() {
+  local -i elapsed=$1 days hours minutes seconds
+  local -a parts
+
+  days=$(( elapsed / 86400 ))
+  hours=$(( elapsed % 86400 / 3600 ))
+  minutes=$(( elapsed % 3600 / 60 ))
+  seconds=$(( elapsed % 60 ))
+
+  (( days )) && parts+=("${days}d")
+  (( hours )) && parts+=("${hours}h")
+  (( minutes )) && parts+=("${minutes}m")
+  (( seconds || ! ${#parts} )) && parts+=("${seconds}s")
+  REPLY="${(j: :)parts}"
+}
+
+prompt_shimoju_shorten_path() {
+  local original=$1 path_text=$1
+  local -i limit=$2
+  local prefix= result component candidate
+  local -a components
+  local -i index
+
+  if (( limit <= 1 )); then
+    REPLY='…'
+    return
+  fi
+  if (( ${#path_text} <= limit )); then
+    REPLY=$path_text
+    return
+  fi
+
+  if [[ $path_text == '~/'* ]]; then
+    prefix='~/'
+    path_text=${path_text#\~/}
+  elif [[ $path_text == /* ]]; then
+    prefix='/'
+    path_text=${path_text#/}
+  fi
+
+  components=("${(@s:/:)path_text}")
+  result=${components[-1]}
+  components[-1]=()
+  for (( index = ${#components}; index >= 1; --index )); do
+    component=${components[index]}
+    candidate="${component}/${result}"
+    (( ${#candidate} + 2 > limit )) && break
+    result=$candidate
+  done
+
+  if [[ "${prefix}${result}" != $original ]]; then
+    result="…/${result}"
+  else
+    result="${prefix}${result}"
+  fi
+
+  if (( ${#result} > limit )); then
+    result="…${result[-$(( limit - 1 )),-1]}"
+  fi
+  REPLY=$result
+}
+
+prompt_shimoju_detect_identity() {
+  typeset -g prompt_shimoju_show_identity=0
+  typeset -g prompt_shimoju_identity_color=yellow
+
+  if (( EUID == 0 )); then
+    prompt_shimoju_show_identity=1
+    prompt_shimoju_identity_color=red
+  elif [[ -n ${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-} ]]; then
+    prompt_shimoju_show_identity=1
+  elif [[ -n ${container-}${KUBERNETES_SERVICE_HOST-} ]] ||
+      [[ -e /.dockerenv || -e /run/.containerenv ]]; then
+    prompt_shimoju_show_identity=1
+  fi
+}
+
+prompt_shimoju_set_title() {
+  [[ $TERM == dumb || -n ${EMACS-}${INSIDE_EMACS-} ]] && return
+  [[ $TTY == /dev/ttyS<-> ]] && return
+
+  local title=$1
+  title=${title//$'\e'/}
+  title=${title//$'\a'/}
+  title=${title//$'\n'/ }
+  title=${title//$'\r'/ }
+  print -n -r -- $'\e]0;'"${title}"$'\a'
+}
+
+prompt_shimoju_preexec() {
+  typeset -gF prompt_shimoju_command_started=$EPOCHREALTIME
+  prompt_shimoju_set_title "${PWD:t}: $2"
+}
+
+prompt_shimoju_render() {
+  setopt localoptions noshwordsplit
+
+  local path_text=${(%):-%~}
+  local time_text=${(%):-%D{%H:%M:%S}}
+  local identity_plain identity_prompt suspended_plain suspended_prompt
+  local duration_plain duration_prompt right_plain right_prompt
+  local left_plain left_prompt path_prompt separator
+  local -a prefix_plain prefix_prompt suffix_plain suffix_prompt
+  local -i columns=${COLUMNS:-0} nonpath_width nonpath_count path_limit
+  local -i left_width right_width padding=0
+
+  (( columns > 0 )) || columns=80
+
+  if ((${(M)#jobstates:#suspended:*})); then
+    suspended_plain='✦'
+    suspended_prompt='%F{red}✦%f'
+    prefix_plain+=($suspended_plain)
+    prefix_prompt+=($suspended_prompt)
+  fi
+
+  if (( prompt_shimoju_show_identity )); then
+    identity_plain=${(%):-%n@%m}
+    prompt_shimoju_escape "$identity_plain"
+    identity_prompt="%F{${prompt_shimoju_identity_color}}${REPLY}%f"
+    prefix_plain+=($identity_plain)
+    prefix_prompt+=($identity_prompt)
+  fi
+
+  if [[ -n ${prompt_shimoju_git_plain-} ]]; then
+    suffix_plain+=("$prompt_shimoju_git_plain")
+    suffix_prompt+=("$prompt_shimoju_git_prompt")
+  fi
+  if [[ -n ${prompt_shimoju_kube_plain-} ]]; then
+    suffix_plain+=("$prompt_shimoju_kube_plain")
+    suffix_prompt+=("$prompt_shimoju_kube_prompt")
+  fi
+
+  if [[ -n ${prompt_shimoju_command_duration-} ]]; then
+    duration_plain=$prompt_shimoju_command_duration
+    prompt_shimoju_escape "$duration_plain"
+    duration_prompt="%F{yellow}${REPLY}%f"
+  fi
+
+  right_plain="${duration_plain:+${duration_plain} }${time_text}"
+  right_prompt="${duration_prompt:+${duration_prompt} }%F{cyan}${time_text}%f"
+
+  nonpath_width=0
+  local part
+  for part in $prefix_plain $suffix_plain; do
+    (( nonpath_width += ${#part} ))
+  done
+  nonpath_count=$(( ${#prefix_plain} + ${#suffix_plain} ))
+
+  right_width=${#right_plain}
+  path_limit=$(( columns - 1 - nonpath_width - nonpath_count - right_width - 2 ))
+
+  if (( path_limit < 8 )); then
+    right_plain=$duration_plain
+    right_prompt=$duration_prompt
+    right_width=${#right_plain}
+    path_limit=$(( columns - 1 - nonpath_width - nonpath_count - right_width - (right_width ? 2 : 0) ))
+  fi
+  if (( path_limit < 8 )); then
+    right_plain=
+    right_prompt=
+    right_width=0
+    path_limit=$(( columns - 1 - nonpath_width - nonpath_count ))
+  fi
+
+  (( path_limit < 1 )) && path_limit=1
+  prompt_shimoju_shorten_path "$path_text" $path_limit
+  path_text=$REPLY
+  prompt_shimoju_escape "$path_text"
+  path_prompt="%F{blue}${REPLY}%f"
+
+  local -a all_plain all_prompt
+  all_plain=($prefix_plain "$path_text" $suffix_plain)
+  all_prompt=($prefix_prompt "$path_prompt" $suffix_prompt)
+  left_plain="${(j: :)all_plain}"
+  left_prompt="${(j: :)all_prompt}"
+  left_width=${#left_plain}
+
+  if (( right_width )); then
+    padding=$(( columns - left_width - right_width ))
+    (( padding < 2 )) && padding=2
+    printf -v separator '%*s' $padding ''
+  else
+    separator=
+  fi
+
+  typeset -g prompt_shimoju_render_left_plain=$left_plain
+  typeset -g prompt_shimoju_render_right_plain=$right_plain
+  typeset -gi prompt_shimoju_render_padding=$padding
+
+  local indicator_color=green
+  (( prompt_shimoju_last_status )) && indicator_color=red
+  PROMPT="${left_prompt}${separator}${right_prompt}"$'\n'"%F{${indicator_color}}❯%f "
+  RPROMPT=
+}
+
+prompt_shimoju_precmd() {
+  local -i last_status=$?
+  typeset -gi prompt_shimoju_last_status=$last_status
+  typeset -g prompt_shimoju_command_duration=
+
+  if [[ -n ${prompt_shimoju_command_started-} ]]; then
+    local -i elapsed=$(( EPOCHREALTIME - prompt_shimoju_command_started ))
+    if (( elapsed > 5 )); then
+      prompt_shimoju_human_time $elapsed
+      prompt_shimoju_command_duration=$REPLY
+    fi
+    unset prompt_shimoju_command_started
+  fi
+
+  prompt_shimoju_set_title "${(%):-%~}"
+  prompt_shimoju_render
+}
+
+prompt_shimoju_detect_identity
+typeset -gi prompt_shimoju_last_status=0
+typeset -g prompt_shimoju_git_plain=
+typeset -g prompt_shimoju_git_prompt=
+typeset -g prompt_shimoju_kube_plain=
+typeset -g prompt_shimoju_kube_prompt=
+
+add-zsh-hook -d precmd prompt_shimoju_precmd 2>/dev/null
+add-zsh-hook -d preexec prompt_shimoju_preexec 2>/dev/null
+add-zsh-hook precmd prompt_shimoju_precmd
+add-zsh-hook preexec prompt_shimoju_preexec
+
+PROMPT2='%F{242}… %(1_.%_ .%_)%f%(?.%F{green}.%F{red})❯%f '
+PROMPT4='%F{yellow}%e%f %F{blue}%x%f%F{242}:%I @ %f%F{blue}%N%f%F{242}:%i >%f '
+
+prompt_shimoju_precmd
