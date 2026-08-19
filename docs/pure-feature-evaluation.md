@@ -149,4 +149,6 @@ Pureのprepromptは左から順に描画され、`RPROMPT`を使用しない。s
 4. 非同期結果にgenerationとPWDを持たせ、古い結果を捨てる。
 5. workerが失敗しても、Git情報がないだけの通常プロンプトへ縮退する。
 
-LLVMでGit状態の完了に約500 msかかっても、Pureは約3 msで入力可能になった。自作版の最優先KPIも、Git処理の絶対時間ではなく入力可能になるまでの時間とする。
+2026-08-19の再測定では、LLVMでGit状態の完了に約492–496 msかかっても、Pureは中央値1 ms未満で入力可能になった。自作版の最優先KPIも、Git処理の絶対時間ではなく入力可能になるまでの時間とする。
+
+GeometryとTypewrittenを含む機能・実装・実測の比較は[Pure・Geometry・Typewrittenの比較](prompt-comparison.md)を参照。比較から、自作版にはTypewrittenの早いbranch jobと詳細status、Geometryの要素配列とKubernetes表示も参考として取り入れる。ただし、非同期処理の世代管理、cancel、縮退動作はPure相当を維持する。

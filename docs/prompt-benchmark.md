@@ -13,18 +13,21 @@
 
 ## 今回の測定環境
 
-測定日: 2026-08-12
+測定日: 2026-08-19
 
 | 項目 | 値 |
 |---|---|
-| OS | macOS、arm64 |
+| OS | macOS 26.6.2、arm64 |
 | Zsh | 5.9 |
 | Git | 2.55.0 |
-| Pure | 1.28.3 |
+| Pure | 1.28.3、commit `89c9e30` |
+| Geometry | commit `0f82c56` |
+| Typewritten | 1.5.2、commit `06f8575` |
 | 測定回数 | clean／dirtyそれぞれ15回 |
 | リポジトリ | `llvm/llvm-project`のshallow clone |
+| リポジトリcommit | `6c206e3` |
 | 作業ツリー | 約2.9 GB |
-| pack | 約294 MiB、190,623 objects |
+| pack | 293.55 MiB、191,166 objects |
 | 履歴 | `--depth=1`、1 commit |
 
 shallow cloneなので、長いコミット履歴を走査する処理の評価には向かない。一方、今回支配的だったindexと作業ツリーの走査を比較する用途には適している。
@@ -50,7 +53,7 @@ clean条件はclone直後の状態とする。
 dirty条件では、追跡済みファイルの変更と未追跡ファイルを1つずつ作る。Pureの詳細dirty表示では`*?`になる状態である。
 
 ```sh
-printf '\n# prompt benchmark\n' >> "$_prompt_bench_repo/llvm/CMakeLists.txt"
+printf '\n# prompt benchmark\n' >> "$_prompt_bench_repo/README.md"
 : > "$_prompt_bench_repo/.prompt-benchmark-untracked"
 git -C "$_prompt_bench_repo" status --short
 ```
@@ -58,7 +61,7 @@ git -C "$_prompt_bench_repo" status --short
 測定後に専用cloneをcleanへ戻す場合:
 
 ```sh
-git -C "$_prompt_bench_repo" restore -- llvm/CMakeLists.txt
+git -C "$_prompt_bench_repo" restore -- README.md
 rm -- "$_prompt_bench_repo/.prompt-benchmark-untracked"
 ```
 
@@ -66,7 +69,7 @@ rm -- "$_prompt_bench_repo/.prompt-benchmark-untracked"
 
 ### 1. 実際の対話Zshを使う
 
-`zsh -dfi`を擬似端末上で起動し、各プロンプトに必要な最小設定だけを読み込む。非対話シェルで関数を直接呼ぶ測定は、ZLEによる再描画や非同期callbackのコストを含まないため使用しない。
+`ZDOTDIR`を測定用ディレクトリへ向けた`zsh -d -i`を擬似端末上で起動し、各プロンプトに必要な最小設定だけを読み込む。非対話シェルで関数を直接呼ぶ測定は、ZLEによる再描画や非同期callbackのコストを含まないため使用しない。
 
 Expectなどで擬似端末を操作し、初期プロンプトの確認後に測定コマンドを15回送る。最初にsmoke testとウォームアップを行い、ウォームアップの結果は集計しない。
 
@@ -109,7 +112,7 @@ _prompt_bench_log() {
 | `CALLBACK dirty` | dirty結果の受信時 | ローカルGit状態が揃った時点 |
 | `WORKER` | worker内の処理終了時 | IPCと再描画を除いた計算時間 |
 
-Pureでは`prompt_pure_preprompt_render`と`prompt_pure_async_callback`を測定用設定からラップしてイベントを記録した。自作プロンプトでは、描画関数とworker callbackへ直接ログを入れる。
+PureとTypewrittenではasync callbackを測定用設定からラップした。Geometryでは`geometry::rprompt::set`をラップした。初期表示は実際の`PROMPT`末尾へ端末制御シーケンスを追加し、それが擬似端末へ到達した時刻をExpect側で記録した。自作プロンプトでは、同じ位置へ計測点を追加する。
 
 Git情報を一括で返す実装では`branch`と`dirty`が同じ時刻になる。段階表示しない実装に、存在しない中間イベントを作らない。
 
@@ -121,7 +124,13 @@ Git情報を一括で返す実装では`branch`と`dirty`が同じ時刻にな�
 
 ### 5. 生データを保存する
 
-今回の一時ログは`/tmp`の消去により残っていない。次回からは次をGit管理対象の結果ディレクトリへ保存する。
+今回のハーネス、イベントログ、端末ログ、集計JSONは次の一時ディレクトリに保存した。
+
+```text
+/private/tmp/prompt-compare-20260819/harness/
+```
+
+一時ディレクトリはOSにより消去されるため、長期保存する測定では次をGit管理対象の結果ディレクトリへ保存する。
 
 ```text
 docs/prompt-benchmark-results/YYYY-MM-DD/
@@ -156,48 +165,51 @@ worker_gitᵢ     = Wᵢ
 
 各指標について、試行数、median、mean、min、p95、maxをミリ秒で出す。主比較には外れ値の影響を受けにくいmedianを使い、p95とmaxも併記する。
 
+## 比較条件
+
+- Pureは現在の設定と同じく、詳細dirtyとstashを有効、virtualenvとNixを無効にした。
+- Pureの自動fetchだけはネットワーク揺らぎをローカルGit状態の比較へ混ぜないため、測定中のみ`PURE_GIT_PULL=0`とした。
+- GeometryとTypewritten通常レイアウトはデフォルト設定を使った。
+- Typewritten Pureレイアウトは`TYPEWRITTEN_PROMPT_LAYOUT=pure`だけを追加した。
+- GeometryはGit情報を右プロンプトの1ジョブでまとめて返すため、独立したブランチ表示時間とworker内Git計算時間を記録できない。
+
 ## 今回の結果
 
-### 中央値
+すべて15回の測定。単位はms。`—`はその実装に独立した計測点がないことを示す。
 
-| 実装・状態 | 初期表示 | ブランチ表示 | Git状態完了 | worker内Git計算 |
+### Clean
+
+| 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
 |---|---:|---:|---:|---:|
-| Pure clean | 3.034 ms | 78.085 ms | 508.858 ms | 500.033 ms |
-| Pure dirty (`*?`) | 3.064 ms | 78.265 ms | 510.966 ms | 502.496 ms |
-| git-prompt.zsh試作 | 約8 ms | 一括表示 | 約496 ms | 約496 ms |
+| Pure | 0.927 / 1.700 | 71.583 / 119.023 | 495.530 / 544.461 | 491.690 / 497.967 |
+| Geometry | 13.904 / 22.175 | — | 829.090 / 866.114 | — |
+| Typewritten default | 16.708 / 31.010 | 27.842 / 50.044 | 545.852 / 763.199 | 525.417 / 726.512 |
+| Typewritten `pure` | 16.644 / 31.872 | 27.891 / 50.673 | 544.943 / 780.446 | 524.516 / 743.121 |
 
-git-prompt.zsh試作の値は当時の要約から復元した概算であり、下の詳細統計には含めない。
+### Dirty
 
-### Pure clean、15回
+追跡済みファイルの変更と未追跡ファイルが1つずつある状態。
 
-| 指標 | median | mean | min | p95 | max |
-|---|---:|---:|---:|---:|---:|
-| 初期表示 | 3.034 | 3.049 | 2.310 | 3.893 | 3.893 |
-| ブランチ表示 | 78.085 | 86.389 | 49.256 | 133.997 | 133.997 |
-| Git状態完了 | 508.858 | 508.067 | 500.496 | 513.270 | 513.270 |
-| worker内Git計算 | 500.033 | 499.477 | 493.558 | 505.136 | 505.136 |
+| 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
+|---|---:|---:|---:|---:|
+| Pure | 0.860 / 2.092 | 69.661 / 123.845 | 491.888 / 533.214 | 488.134 / 499.109 |
+| Geometry | 13.612 / 22.480 | — | 340.386 / 352.301 | — |
+| Typewritten default | 16.226 / 28.275 | 27.096 / 45.878 | 544.338 / 761.721 | 524.034 / 718.238 |
+| Typewritten `pure` | 16.530 / 34.066 | 27.353 / 51.498 | 544.290 / 776.590 | 523.997 / 724.258 |
 
-単位はms。
-
-### Pure dirty、15回
-
-| 指標 | median | mean | min | p95 | max |
-|---|---:|---:|---:|---:|---:|
-| 初期表示 | 3.064 | 3.235 | 2.742 | 3.982 | 3.982 |
-| ブランチ表示 | 78.265 | 89.620 | 50.041 | 133.021 | 133.021 |
-| Git状態完了 | 510.966 | 514.880 | 505.397 | 569.315 | 569.315 |
-| worker内Git計算 | 502.496 | 506.292 | 497.679 | 560.335 | 560.335 |
-
-単位はms。
+Typewrittenの通常レイアウトとPureレイアウトの差は測定揺らぎの範囲であり、`TYPEWRITTEN_PROMPT_LAYOUT=pure`による有意な性能低下は見られなかった。
 
 ## 解釈
 
-- 約500 msかかるGit状態の完了を待たず、約3 msで入力可能になっている。これがPureの体感速度の中心である。
-- ブランチは約78 msで先に表示され、dirtyは約509–511 msで後から追加される。自作版でも段階表示を維持したい。
+- 約500 msかかるGit状態の完了を待たず、Pureは中央値1 ms未満で入力可能になっている。これがPureの体感速度の中心である。
+- Pureのブランチは約70–72 msで先に表示され、dirtyは約492–496 msで後から追加される。自作版でも段階表示を維持したい。
 - cleanとdirtyで初期表示はほぼ変わらない。Gitの重さがZLEの入力開始から切り離されている。
-- cleanでもdirty判定は約500 msかかるため、「変更がない場合だけ速い」リポジトリではない。
-- `git status`系の計算時間はPureとgit-prompt.zsh試作で同程度だった。自作の主眼はGit自体を劇的に速くすることより、待ち時間を入力経路から外すことになる。
+- Typewrittenはブランチを約27–28 msで表示し、この指標だけならPureより速い。一方、同期処理を含む初期表示は約16–17 ms、Git状態完了は約544–546 msだった。
+- GeometryのGit表示は段階表示されない。cleanでは約829 ms、追跡済みdirtyでは約340 msとなった。これはdirty時に`git diff-index --quiet HEAD`で短絡し、clean時には続けて`git status --porcelain --ignore-submodules`を実行する実装による。未追跡だけのdirtyも後段まで進むため、このdirty値を一般化しない。
+- 自作の主眼はGit自体を劇的に速くすることより、待ち時間を入力経路から外し、軽い情報から段階的に表示することになる。
 - 自動fetchは非同期なので入力開始を妨げない。ただしネットワーク完了時間はこの`Git状態完了`指標に含めず、CPU、I/O、通信量は別途評価する。
+
+機能と実装方式を含む評価は[Pure・Geometry・Typewrittenの比較](prompt-comparison.md)を参照。
 
 ## 自作プロンプトを追加するときの合格基準
 
