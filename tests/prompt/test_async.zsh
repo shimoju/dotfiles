@@ -36,6 +36,8 @@ assert_not_equal() {
 typeset _repo_root=${0:A:h:h:h}
 typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-async.XXXXXXXX")
 _fixture_root=${_fixture_root:A}
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_NOSYSTEM=1
 
 cleanup() {
   async_stop_worker _shsh 2>/dev/null || true
@@ -47,6 +49,7 @@ source "$ASYNC_ZSH_PATH"
 command git -C "$_fixture_root" init -q -b main
 command git -C "$_fixture_root" config user.name test
 command git -C "$_fixture_root" config user.email test@example.com
+command git -C "$_fixture_root" config alias.pl pull
 print -r -- base > "$_fixture_root/tracked"
 command git -C "$_fixture_root" add tracked
 command git -C "$_fixture_root" commit -qm initial
@@ -62,12 +65,15 @@ TERM=dumb _shsh_precmd >/dev/null
 repeat 40; do
   sleep 0.05
   async_process_results _shsh _shsh_async_callback 2>/dev/null || true
-  [[ $_shsh_git_branch == main && $_shsh_git_dirty == '?' ]] && break
+  [[ $_shsh_git_branch == main && $_shsh_git_dirty == '?' &&
+    $_shsh_fetch_alias_top == $_fixture_root ]] && break
 done
 
 assert_equal main "$_shsh_git_branch" 'worker publishes the branch asynchronously'
 assert_equal '?' "$_shsh_git_dirty" 'worker publishes untracked status asynchronously'
 assert_equal 'main?' "$_shsh_git_plain" 'callback redraws the combined Git segment'
+assert_equal 'pull fetch pl' "${(j: :)_shsh_fetch_commands}" \
+  'worker publishes fetching aliases into the repository cache'
 
 typeset _old_generation=$_shsh_generation
 builtin cd -q -- "$_repo_root"

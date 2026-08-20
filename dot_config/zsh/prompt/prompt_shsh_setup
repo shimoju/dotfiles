@@ -200,7 +200,7 @@ _shsh_async_git_status() {
 }
 
 _shsh_async_git_aliases() {
-  local generation=$1 workdir=$2 name expansion
+  local generation=$1 workdir=$2 top=$3 name expansion
   local -a aliases
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
@@ -210,7 +210,7 @@ _shsh_async_git_aliases() {
     fi
   done < <(command git config --get-regexp '^alias\.' 2>/dev/null)
 
-  print -r -- ${(q)generation} ${(q)workdir} ${(q)${(j: :)aliases}}
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)top} ${(q)${(j: :)aliases}}
 }
 
 _shsh_async_git_fetch() {
@@ -366,6 +366,19 @@ _shsh_async_init() {
   typeset -gi _shsh_async_ready=1
 }
 
+_shsh_update_fetch_aliases() {
+  local generation=$1 workdir=$2 top=$3
+
+  if [[ $top == ${_shsh_fetch_alias_top-} ]]; then
+    typeset -ga _shsh_fetch_commands=(pull fetch $_shsh_fetch_aliases)
+    return
+  fi
+
+  typeset -ga _shsh_fetch_commands=(pull fetch)
+  async_job _shsh _shsh_async_git_aliases \
+    "$generation" "$workdir" "$top" || true
+}
+
 _shsh_async_refresh() {
   local workdir=$PWD
 
@@ -383,8 +396,6 @@ _shsh_async_refresh() {
   async_job _shsh _shsh_async_git_branch \
     $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_status \
-    $_shsh_generation "$workdir" || return
-  async_job _shsh _shsh_async_git_aliases \
     $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_fetch \
     $_shsh_generation "$workdir" || return
@@ -444,6 +455,11 @@ _shsh_async_callback() {
       _shsh_git_action=${result[5]}
       if [[ -z $_shsh_git_top ]]; then
         _shsh_clear_git_state
+        typeset -g _shsh_fetch_alias_top=
+        typeset -ga _shsh_fetch_aliases=()
+      else
+        _shsh_update_fetch_aliases \
+          "${result[1]}" "${result[2]}" "$_shsh_git_top"
       fi
       ;;
     (_shsh_async_git_status)
@@ -453,8 +469,15 @@ _shsh_async_callback() {
       _shsh_git_stash=${result[5]}
       ;;
     (_shsh_async_git_aliases)
-      (( ${#result} == 3 )) || return 0
-      _shsh_fetch_commands=(pull fetch ${(s: :)result[3]})
+      (( code == 0 && ${#result} == 4 )) || return 0
+      [[ -n ${result[3]} && ${result[3]} == ${_shsh_git_top-} ]] || return 0
+      typeset -g _shsh_fetch_alias_top=${result[3]}
+      if [[ -n ${result[4]} ]]; then
+        typeset -ga _shsh_fetch_aliases=("${(s: :)result[4]}")
+      else
+        typeset -ga _shsh_fetch_aliases=()
+      fi
+      typeset -ga _shsh_fetch_commands=(pull fetch $_shsh_fetch_aliases)
       ;;
     (_shsh_async_git_fetch)
       (( ${#result} == 4 )) || return 0
@@ -639,6 +662,8 @@ typeset -g _shsh_kube_context=
 typeset -g _shsh_kube_namespace=
 typeset -g _shsh_kube_current_signature=
 typeset -g _shsh_kube_loaded_signature=
+typeset -g _shsh_fetch_alias_top=
+typeset -ga _shsh_fetch_aliases=()
 typeset -gi _shsh_generation=0
 typeset -gi _shsh_async_ready=0
 typeset -gi _shsh_async_restarting=0

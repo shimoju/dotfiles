@@ -70,9 +70,16 @@ assert_equal keep "$_shsh_git_branch" 'rejects a stale generation'
 
 builtin cd -q -- "$_fixture_root"
 _shsh_generation=7
+typeset -ga _queued_jobs=()
+async_job() {
+  _queued_jobs+=("$2")
+}
 _shsh_async_callback _shsh_async_git_branch 0 \
   "$(_shsh_async_git_branch 7 "$_fixture_root")" 0 '' 0
 assert_equal main "$_shsh_git_branch" 'accepts the current branch generation'
+assert_equal _shsh_async_git_aliases "${_queued_jobs[-1]}" \
+  'queues alias discovery after entering a repository'
+unfunction async_job
 _shsh_async_callback _shsh_async_git_status 0 \
   "$(_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
 assert_equal 'main*+? ⇣⇡ ≡' "$_shsh_git_plain" 'builds a unified Git segment'
