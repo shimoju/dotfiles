@@ -96,12 +96,16 @@ rehash
 unset PROMPT_TEST_GIT_TOP PROMPT_TEST_GIT_LOG
 
 command git -C "$_fixture_root/local" config alias.sync 'pull --ff-only'
+command git -C "$_fixture_root/local" config alias.shell-sync '!git fetch --all'
+command git -C "$_fixture_root/local" config alias.review 'show refs/pull/123'
+command git -C "$_fixture_root/local" config alias.search 'log --grep=fetch'
 typeset _local_top=$(command git -C "$_fixture_root/local" rev-parse --show-toplevel)
 typeset _other_top=$(command git -C "$_fixture_root/other" rev-parse --show-toplevel)
 typeset _alias_output=$(_shsh_async_git_aliases 9 "$_fixture_root/local" "$_local_top")
 result=("${(Q@)${(z)_alias_output}}")
 assert_equal "$_local_top" "${result[3]}" 'keys fetching aliases by Git top-level'
-assert_equal sync "${result[4]}" 'discovers aliases that may fetch'
+assert_equal 'sync shell-sync' "${result[4]}" \
+  'discovers fetching aliases without substring false positives'
 
 typeset _original_pwd=$PWD
 builtin cd -q -- "$_fixture_root/local"
@@ -109,11 +113,13 @@ _shsh_generation=9
 _shsh_git_top=$_local_top
 _shsh_async_callback _shsh_async_git_aliases 0 "$_alias_output" 0 '' 0
 assert_equal "$_local_top" "$_shsh_fetch_alias_top" 'caches aliases for the current repository'
-assert_equal 'pull fetch sync' "${(j: :)_shsh_fetch_commands}" 'adds cached aliases to fetch commands'
+assert_equal 'pull fetch sync shell-sync' "${(j: :)_shsh_fetch_commands}" 'adds cached aliases to fetch commands'
 assert_success 'detects a foreground fetch' \
   _shsh_command_conflicts_with_fetch 'git -C repo fetch origin'
 assert_success 'detects a fetching Git alias' \
   _shsh_command_conflicts_with_fetch 'command git sync'
+assert_success 'detects a shell Git alias that fetches' \
+  _shsh_command_conflicts_with_fetch 'git shell-sync'
 
 typeset -ga _queued_jobs=()
 async_job() {
@@ -122,7 +128,7 @@ async_job() {
 
 _shsh_fetch_commands=(pull fetch)
 _shsh_update_fetch_aliases 10 "$_fixture_root/local/subdir" "$_local_top"
-assert_equal 'pull fetch sync' "${(j: :)_shsh_fetch_commands}" \
+assert_equal 'pull fetch sync shell-sync' "${(j: :)_shsh_fetch_commands}" \
   'reuses aliases in a subdirectory of the same repository'
 assert_equal 0 "${#_queued_jobs}" 'does not queue an alias job on a cache hit'
 

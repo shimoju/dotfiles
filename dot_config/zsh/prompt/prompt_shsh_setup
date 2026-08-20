@@ -214,11 +214,12 @@ _shsh_async_git_arrows() {
 
 _shsh_async_git_aliases() {
   local generation=$1 workdir=$2 top=$3 name expansion
-  local -a aliases
+  local -a aliases words
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
   while read -r name expansion; do
-    if [[ $expansion == *pull* || $expansion == *fetch* ]]; then
+    words=("${(z)expansion}")
+    if (( ${words[(Ie)pull]} || ${words[(Ie)fetch]} )); then
       aliases+=("${name#alias.}")
     fi
   done < <(command git config --get-regexp '^alias\.' 2>/dev/null)
