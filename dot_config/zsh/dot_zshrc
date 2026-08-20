@@ -128,11 +128,8 @@ done
 unset _zshrc_file
 
 # Prompt
-_prompt_dir="${ZDOTDIR:-$HOME}/prompt"
-fpath=("$_prompt_dir" $fpath)
+fpath=("${ZDOTDIR:-$HOME}/prompt" $fpath)
 
 autoload -Uz promptinit
 promptinit
 prompt shsh
-
-unset _prompt_dir
