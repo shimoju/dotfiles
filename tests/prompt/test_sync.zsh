@@ -59,12 +59,13 @@ _shsh_shorten_path '/a/very-long-component' 8
 assert_equal '…mponent' "$REPLY" 'falls back to tail truncation'
 
 _shsh_last_status=0
+_shsh_time=12:34:56
 COLUMNS=80
 _shsh_render
 assert_contains "$PROMPT" $'\n%F{#a6e3a1}❯%f ' 'renders a two-line success prompt'
 assert_contains "$PROMPT" '%F{#89b4fa}' 'renders the path in Mocha Blue'
 assert_contains "$PROMPT" '%F{#7f849c}' 'renders the clock in Mocha Overlay 1'
-assert_equal 8 "${#_shsh_render_right_plain}" 'renders current time at the right'
+assert_equal 12:34:56 "$_shsh_render_right_plain" 'keeps the precmd time at the right'
 assert_true '(( ${#_shsh_render_left_plain} + _shsh_render_padding + ${#_shsh_render_right_plain} == COLUMNS ))' 'aligns the right segment to the terminal edge'
 
 _shsh_last_status=1
@@ -89,5 +90,20 @@ unfunction _test_shsh_async_refresh
 
 typeset _redraw_output=$(_shsh_async_redraw; print -n -- marker)
 assert_equal marker "$_redraw_output" 'does not print a blank line during asynchronous redraw'
+
+typeset -ga _zle_calls=()
+zle() {
+  _zle_calls+=("$*")
+}
+CONTEXT=cont
+_shsh_async_redraw
+assert_equal 0 "${#_zle_calls}" 'does not reset the prompt during continuation input'
+CONTEXT=start
+_shsh_async_redraw
+assert_equal .reset-prompt "${_zle_calls[-1]}" 'uses the builtin reset-prompt widget'
+unfunction zle
+unset CONTEXT
+
+assert_equal '' "$PROMPT_EOL_MARK" 'hides the end-of-line marker like Pure'
 
 print -r -- "1..${_test_count}"

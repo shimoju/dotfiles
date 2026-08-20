@@ -71,20 +71,32 @@ assert_equal keep "$_shsh_git_branch" 'rejects a stale generation'
 builtin cd -q -- "$_fixture_root"
 _shsh_generation=7
 typeset -ga _queued_jobs=()
+typeset -gi _redraw_count=0
 async_job() {
   _queued_jobs+=("$2")
+}
+functions[_saved_async_redraw]=$functions[_shsh_async_redraw]
+_shsh_async_redraw() {
+  (( ++_redraw_count ))
 }
 _shsh_async_callback _shsh_async_git_branch 0 \
   "$(_shsh_async_git_branch 7 "$_fixture_root")" 0 '' 0
 assert_equal main "$_shsh_git_branch" 'accepts the current branch generation'
 assert_equal _shsh_async_git_aliases "${_queued_jobs[-1]}" \
   'queues alias discovery after entering a repository'
+assert_equal 1 "$_redraw_count" 'redraws when the branch changes'
 unfunction async_job
 _shsh_async_callback _shsh_async_git_status 0 \
   "$(_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
 assert_equal 'main*+? ⇣⇡ ≡' "$_shsh_git_plain" 'builds a unified Git segment'
 assert_equal '%F{#cba6f7}main%f%F{#fab387}*+?%f %F{#94e2d5}⇣⇡%f %F{#f5e0dc}≡%f' \
   "$_shsh_git_prompt" 'applies the Structured Mauve Git colors'
+assert_equal 2 "$_redraw_count" 'redraws when the Git status changes'
+_shsh_async_callback _shsh_async_git_status 0 \
+  "$(_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
+assert_equal 2 "$_redraw_count" 'skips redraw when the Git status is unchanged'
+functions[_shsh_async_redraw]=$functions[_saved_async_redraw]
+unfunction _saved_async_redraw
 
 typeset _detached_head=$(command git -C "$_fixture_root" rev-parse --short HEAD)
 command git -C "$_fixture_root" switch -q --detach HEAD

@@ -416,28 +416,32 @@ _shsh_async_refresh() {
 }
 
 _shsh_async_redraw() {
-  _shsh_update_git_render
   _shsh_render
-  [[ -o zle ]] && zle reset-prompt
+  [[ ${CONTEXT-} == cont ]] && return 0
+  zle && zle .reset-prompt
   return 0
 }
 
 _shsh_async_callback() {
   setopt localoptions noshwordsplit
   local job=$1 code=$2 output=$3 next_pending=$6
+  local previous
+  local -i do_render=0
   local -a result
 
   if [[ $job == '[async]' ]]; then
     if (( code == 2 || code == 3 || code == 130 )); then
+      previous=$_shsh_git_prompt
       typeset -gi _shsh_async_ready=0
       async_stop_worker _shsh 2>/dev/null || true
       _shsh_clear_git_state
+      [[ $previous != $_shsh_git_prompt ]] && do_render=1
       if (( ! ${_shsh_async_restarting:-0} )); then
         typeset -gi _shsh_async_restarting=1
         _shsh_async_refresh
         _shsh_async_restarting=0
       fi
-      _shsh_async_redraw
+      (( do_render )) && _shsh_async_redraw
     fi
     return 0
   fi
@@ -450,6 +454,7 @@ _shsh_async_callback() {
   case $job in
     (_shsh_async_git_branch)
       (( ${#result} == 5 )) || return 0
+      previous=$_shsh_git_prompt
       _shsh_git_top=${result[3]}
       _shsh_git_branch=${result[4]}
       _shsh_git_action=${result[5]}
@@ -461,12 +466,17 @@ _shsh_async_callback() {
         _shsh_update_fetch_aliases \
           "${result[1]}" "${result[2]}" "$_shsh_git_top"
       fi
+      _shsh_update_git_render
+      [[ $previous != $_shsh_git_prompt ]] && do_render=1
       ;;
     (_shsh_async_git_status)
       (( ${#result} == 5 )) || return 0
+      previous=$_shsh_git_prompt
       _shsh_git_dirty=${result[3]}
       _shsh_git_arrows=${result[4]}
       _shsh_git_stash=${result[5]}
+      _shsh_update_git_render
+      [[ $previous != $_shsh_git_prompt ]] && do_render=1
       ;;
     (_shsh_async_git_aliases)
       (( code == 0 && ${#result} == 4 )) || return 0
@@ -482,28 +492,33 @@ _shsh_async_callback() {
     (_shsh_async_git_fetch)
       (( ${#result} == 4 )) || return 0
       if (( result[3] )); then
+        previous=$_shsh_git_prompt
         _shsh_git_arrows=${result[4]}
+        _shsh_update_git_render
+        [[ $previous != $_shsh_git_prompt ]] && do_render=1
       fi
       ;;
     (_shsh_async_kube)
       (( ${#result} == 5 )) || return 0
       [[ ${result[3]} == $_shsh_kube_current_signature ]] || return 0
+      previous=$_shsh_kube_prompt
       _shsh_kube_loaded_signature=${result[3]}
       _shsh_kube_context=${result[4]}
       _shsh_kube_namespace=${result[5]}
       _shsh_update_kube_render
+      [[ $previous != $_shsh_kube_prompt ]] && do_render=1
       ;;
     (*) return 0 ;;
   esac
 
   if (( next_pending )); then
-    typeset -gi _shsh_async_render_requested=1
+    (( do_render )) && typeset -gi _shsh_async_render_requested=1
     return
   fi
-  if (( ${_shsh_async_render_requested:-0} )); then
+  if (( ${_shsh_async_render_requested:-0} || do_render )); then
     _shsh_async_render_requested=0
+    _shsh_async_redraw
   fi
-  _shsh_async_redraw
   return 0
 }
 
@@ -536,7 +551,7 @@ _shsh_render() {
   setopt localoptions noshwordsplit
 
   local path_text=${(%):-%~}
-  local time_text=${(%):-%D{%H:%M:%S}}
+  local time_text=$_shsh_time
   local identity_plain identity_prompt suspended_plain suspended_prompt
   local duration_plain duration_prompt right_plain right_prompt
   local left_plain left_prompt path_prompt separator
@@ -638,6 +653,7 @@ _shsh_precmd() {
   print
   typeset -gi _shsh_last_status=$last_status
   typeset -g _shsh_command_duration=
+  typeset -g _shsh_time=${(%):-%D{%H:%M:%S}}
 
   if [[ -n ${_shsh_command_started-} ]]; then
     local -i elapsed=$(( EPOCHREALTIME - _shsh_command_started ))
@@ -664,6 +680,7 @@ typeset -g _shsh_kube_current_signature=
 typeset -g _shsh_kube_loaded_signature=
 typeset -g _shsh_fetch_alias_top=
 typeset -ga _shsh_fetch_aliases=()
+typeset -g _shsh_time=${(%):-%D{%H:%M:%S}}
 typeset -gi _shsh_generation=0
 typeset -gi _shsh_async_ready=0
 typeset -gi _shsh_async_restarting=0
@@ -676,5 +693,6 @@ add-zsh-hook preexec _shsh_preexec
 
 PROMPT2="%F{${_shsh_colors[subtle]}}… %(1_.%_ .%_)%f%(?.%F{${_shsh_colors[success]}}.%F{${_shsh_colors[failure]}})❯%f "
 PROMPT4="%F{${_shsh_colors[warning]}}%e%f %F{${_shsh_colors[path]}}%x%f%F{${_shsh_colors[subtle]}}:%I @ %f%F{${_shsh_colors[branch]}}%N%f%F{${_shsh_colors[subtle]}}:%i >%f "
+PROMPT_EOL_MARK=
 
 _shsh_render
