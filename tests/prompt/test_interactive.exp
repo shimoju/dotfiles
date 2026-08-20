@@ -1,0 +1,48 @@
+#!/usr/bin/expect -f
+
+set timeout 10
+set source_zdotdir [file normalize [file join [file dirname [info script]] ../.. dot_config zsh]]
+set async_zsh_path $env(ASYNC_ZSH_PATH)
+set fixture $env(PROMPT_TEST_FIXTURE)
+set test_zdotdir $env(PROMPT_TEST_ZDOTDIR)
+
+cd /private/tmp
+set env(TERM) xterm-256color
+spawn -noecho zsh -dfi
+
+send -- "source $async_zsh_path; export ZDOTDIR=$test_zdotdir; source $source_zdotdir/dot_zshrc\r"
+expect {
+  -re {❯} {}
+  timeout { puts stderr "initial prompt timeout"; exit 1 }
+}
+# Let the initial non-Git refresh finish before changing directories.
+after 100
+
+send -- "cd $fixture\r"
+expect {
+  -re {❯} {}
+  timeout { puts stderr "fixture prompt timeout"; exit 2 }
+}
+
+# Leave a command in ZLE while the branch callback redraws the prompt.
+send -- "print -r -- BUFFER_PRESERVED"
+expect {
+  -re {main} {}
+  timeout { puts stderr "asynchronous branch timeout"; exit 3 }
+}
+after 100
+send -- "\r"
+expect {
+  -re {BUFFER_PRESERVED} {}
+  timeout { puts stderr "editing buffer was not preserved"; exit 4 }
+}
+
+send -- "false\r"
+expect {
+  -re {\x1b\[38;2;243;139;168m❯} {}
+  timeout { puts stderr "failure prompt was not red"; exit 5 }
+}
+
+send -- "exit\r"
+expect eof
+puts "ok - asynchronous redraw preserves the ZLE editing buffer"

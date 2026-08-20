@@ -1,0 +1,807 @@
+emulate -L zsh
+# promptinit applies these after setup. Keep promptsubst off because dynamic
+# path and Git values are escaped only for prompt percent expansion.
+prompt_opts=(cr percent sp)
+
+autoload -Uz add-zsh-hook
+zmodload zsh/datetime
+zmodload zsh/stat
+
+typeset -gA _shsh_colors=(
+  success '#a6e3a1'
+  failure '#f38ba8'
+  warning '#f9e2af'
+  path '#89b4fa'
+  branch '#cba6f7'
+  dirty '#fab387'
+  conflict '#f38ba8'
+  git_action '#f5c2e7'
+  git_sync '#94e2d5'
+  stash '#f5e0dc'
+  kubernetes '#74c7ec'
+  identity '#b4befe'
+  subtle '#7f849c'
+)
+
+_shsh_escape() {
+  REPLY=${1//\%/%%}
+}
+
+_shsh_human_time() {
+  local -i elapsed=$1 days hours minutes seconds
+  local -a parts
+
+  days=$(( elapsed / 86400 ))
+  hours=$(( elapsed % 86400 / 3600 ))
+  minutes=$(( elapsed % 3600 / 60 ))
+  seconds=$(( elapsed % 60 ))
+
+  (( days )) && parts+=("${days}d")
+  (( hours )) && parts+=("${hours}h")
+  (( minutes )) && parts+=("${minutes}m")
+  (( seconds || ! ${#parts} )) && parts+=("${seconds}s")
+  REPLY="${(j: :)parts}"
+}
+
+_shsh_shorten_path() {
+  local original=$1 path_text=$1
+  local -i limit=$2
+  local prefix= result component candidate
+  local -a components
+  local -i index
+
+  if (( limit <= 1 )); then
+    REPLY='…'
+    return
+  fi
+  if (( ${#path_text} <= limit )); then
+    REPLY=$path_text
+    return
+  fi
+
+  if [[ $path_text == '~/'* ]]; then
+    prefix='~/'
+    path_text=${path_text#\~/}
+  elif [[ $path_text == /* ]]; then
+    prefix='/'
+    path_text=${path_text#/}
+  fi
+
+  components=("${(@s:/:)path_text}")
+  result=${components[-1]}
+  components[-1]=()
+  for (( index = ${#components}; index >= 1; --index )); do
+    component=${components[index]}
+    candidate="${component}/${result}"
+    (( ${#candidate} + 2 > limit )) && break
+    result=$candidate
+  done
+
+  if [[ "${prefix}${result}" != $original ]]; then
+    result="…/${result}"
+  else
+    result="${prefix}${result}"
+  fi
+
+  if (( ${#result} > limit )); then
+    result="…${result[-$(( limit - 1 )),-1]}"
+  fi
+  REPLY=$result
+}
+
+_shsh_detect_identity() {
+  typeset -g _shsh_show_identity=0
+  typeset -g _shsh_identity_color=$_shsh_colors[identity]
+  typeset -g _shsh_title_prefix=
+  local ssh_connection=${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-}
+
+  if [[ -n $ssh_connection ]]; then
+    _shsh_title_prefix="${(%):-%m} "
+  fi
+
+  if (( EUID == 0 )); then
+    _shsh_show_identity=1
+    _shsh_identity_color=$_shsh_colors[failure]
+  elif [[ -n $ssh_connection ]]; then
+    _shsh_show_identity=1
+  elif [[ -n ${container-}${KUBERNETES_SERVICE_HOST-} ]] ||
+      [[ -e /.dockerenv || -e /run/.containerenv ]]; then
+    _shsh_show_identity=1
+  fi
+}
+
+_shsh_set_title() {
+  [[ $TERM == dumb || -n ${EMACS-}${INSIDE_EMACS-} ]] && return
+  [[ $TTY == /dev/ttyS<-> ]] && return
+
+  local title="${_shsh_title_prefix-}$1"
+  title=${title//$'\e'/}
+  title=${title//$'\a'/}
+  title=${title//$'\n'/ }
+  title=${title//$'\r'/ }
+  print -n -r -- $'\e]0;'"${title}"$'\a'
+}
+
+_shsh_git_action() {
+  local -a git_paths=("$@")
+
+  if [[ -d ${git_paths[1]-} ]]; then
+    [[ -f ${git_paths[1]}/interactive ]] && REPLY='rebase-i' || REPLY='rebase-m'
+    return
+  fi
+
+  if [[ -d ${git_paths[2]-} ]]; then
+    [[ -f ${git_paths[2]}/rebasing ]] && REPLY='rebase' || REPLY='am'
+    return
+  fi
+
+  [[ -f ${git_paths[3]-} ]] && { REPLY='merge'; return; }
+  [[ -f ${git_paths[4]-} ]] && { REPLY='cherry-pick'; return; }
+  [[ -f ${git_paths[5]-} ]] && { REPLY='revert'; return; }
+  [[ -f ${git_paths[6]-} ]] && { REPLY='bisect'; return; }
+  REPLY=
+}
+
+_shsh_async_git_branch() {
+  local generation=$1 workdir=$2 top branch action
+  local -a repository
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  # Resolve HEAD last so unborn repositories still return their Git paths.
+  repository=("${(@f)$(command git rev-parse \
+    --show-toplevel \
+    --git-path rebase-merge \
+    --git-path rebase-apply \
+    --git-path MERGE_HEAD \
+    --git-path CHERRY_PICK_HEAD \
+    --git-path REVERT_HEAD \
+    --git-path BISECT_LOG \
+    --abbrev-ref HEAD 2>/dev/null)}") || true
+  top=${repository[1]-}
+  if [[ -n $top ]]; then
+    branch=${repository[8]-}
+    if [[ -z $branch || $branch == HEAD ]]; then
+      branch=$(command git symbolic-ref --quiet --short HEAD 2>/dev/null) ||
+        branch=$(command git rev-parse --short HEAD 2>/dev/null)
+    fi
+    _shsh_git_action "${repository[@]:1}"
+    action=$REPLY
+  fi
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)top} ${(q)branch} ${(q)action}
+}
+
+_shsh_async_git_status() {
+  local generation=$1 workdir=$2 line xy
+  local -i unstaged=0 staged=0 untracked=0 conflicted=0 stash=0
+  local -a fields
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  while IFS= read -r line; do
+    case $line in
+      ('# stash '*)
+        fields=(${=line})
+        stash=${fields[3]}
+        ;;
+      ('u '*) conflicted=1 ;;
+      ([12]' '*)
+        xy=${line[3,4]}
+        [[ ${xy[1]} != '.' ]] && staged=1
+        [[ ${xy[2]} != '.' ]] && unstaged=1
+        ;;
+      ('? '*) untracked=1 ;;
+    esac
+  done < <(
+    GIT_OPTIONAL_LOCKS=0 command git status \
+      --porcelain=v2 --show-stash --untracked-files=normal --no-renames \
+      2>/dev/null
+  )
+
+  local dirty= conflict_marker= stash_marker=
+  (( unstaged )) && dirty+='*'
+  (( staged )) && dirty+='+'
+  (( untracked )) && dirty+='?'
+  (( conflicted )) && conflict_marker='#'
+  (( stash )) && stash_marker='≡'
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} \
+    ${(q)conflict_marker} ${(q)stash_marker}
+}
+
+_shsh_git_arrows() {
+  local output
+  local -a counts
+
+  REPLY=
+  output=$(command git rev-list --left-right --count HEAD...@'{u}' 2>/dev/null) || return 0
+  counts=(${=output})
+  (( ${counts[2]:-0} )) && REPLY+='⇣'
+  (( ${counts[1]:-0} )) && REPLY+='⇡'
+  return 0
+}
+
+_shsh_async_git_arrows() {
+  local generation=$1 workdir=$2
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  _shsh_git_arrows
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)REPLY}
+}
+
+_shsh_async_git_aliases() {
+  local generation=$1 workdir=$2 top=$3 name expansion
+  local -a aliases words
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  while read -r name expansion; do
+    words=("${(z)expansion}")
+    if (( ${words[(Ie)pull]} || ${words[(Ie)fetch]} )); then
+      aliases+=("${name#alias.}")
+    fi
+  done < <(command git config --get-regexp '^alias\.' 2>/dev/null)
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)top} ${(q)${(j: :)aliases}}
+}
+
+_shsh_async_git_fetch() {
+  local workdir=$1 expected_top=$2 top arrows= success=0
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  top=$(command git rev-parse --show-toplevel 2>/dev/null) || top=
+  if [[ -n $top && $top == $expected_top && $top != $HOME ]]; then
+    export GIT_TERMINAL_PROMPT=0
+    export GIT_ASKPASS=true
+    export GCM_INTERACTIVE=never
+    export SSH_ASKPASS_REQUIRE=never
+    export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes"
+    export GPG_TTY=
+
+    if command git \
+        -c gc.auto=0 \
+        -c maintenance.auto=0 \
+        -c fetch.prune=false \
+        fetch --quiet --no-tags --no-prune-tags --recurse-submodules=no \
+        </dev/null 2>/dev/null; then
+      success=1
+      _shsh_git_arrows
+      arrows=$REPLY
+    fi
+  fi
+
+  print -r -- ${(q)top} $success ${(q)arrows}
+}
+
+_shsh_kube_signature() {
+  (( $+commands[kubectl] )) || { REPLY=; return 1; }
+
+  local config_path signature=${KUBECONFIG-}
+  local -a config_paths file_stat
+  local -A stat_result
+  local -i found=0
+
+  if [[ -n ${KUBECONFIG-} ]]; then
+    config_paths=("${(@s/:/)KUBECONFIG}")
+  else
+    config_paths=("${HOME}/.kube/config")
+  fi
+
+  for config_path in $config_paths; do
+    config_path=${config_path/#\~/$HOME}
+    [[ -r $config_path ]] || continue
+    stat_result=()
+    zstat -H stat_result -- "$config_path" 2>/dev/null || continue
+    signature+="|${config_path}:${stat_result[mtime]}:${stat_result[size]}"
+    found=1
+  done
+
+  (( found )) || { REPLY=; return 1; }
+  REPLY=$signature
+}
+
+_shsh_async_kube() {
+  local generation=$1 workdir=$2 signature=$3 kubeconfig=$4
+  local output context namespace
+
+  if [[ -n $kubeconfig ]]; then
+    export KUBECONFIG=$kubeconfig
+  else
+    unset KUBECONFIG
+  fi
+
+  output=$(command kubectl config view --minify \
+    --output='jsonpath={.current-context}{"\t"}{.contexts[0].context.namespace}' \
+    2>/dev/null)
+  context=${output%%$'\t'*}
+  if [[ $output == *$'\t'* ]]; then
+    namespace=${output#*$'\t'}
+  fi
+  [[ -n $context && -z $namespace ]] && namespace=default
+
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)signature} ${(q)context} ${(q)namespace}
+}
+
+_shsh_clear_git_state() {
+  typeset -g _shsh_git_top=
+  typeset -g _shsh_git_branch=
+  typeset -g _shsh_git_action=
+  typeset -g _shsh_git_dirty=
+  typeset -g _shsh_git_conflict=
+  typeset -g _shsh_git_arrows=
+  typeset -g _shsh_git_stash=
+  typeset -ga _shsh_fetch_commands=(pull fetch)
+  typeset -g _shsh_git_plain=
+  typeset -g _shsh_git_prompt=
+}
+
+_shsh_update_kube_render() {
+  local plain= prompt=
+  if [[ -n $_shsh_kube_context ]]; then
+    plain="⎈ ${_shsh_kube_context}/${_shsh_kube_namespace}"
+    _shsh_escape "$plain"
+    prompt="%F{${_shsh_colors[kubernetes]}}${REPLY}%f"
+  fi
+  typeset -g _shsh_kube_plain=$plain
+  typeset -g _shsh_kube_prompt=$prompt
+}
+
+_shsh_update_git_render() {
+  local plain= prompt= escaped
+
+  if [[ -n $_shsh_git_branch ]]; then
+    plain=$_shsh_git_branch
+    _shsh_escape "$_shsh_git_branch"
+    prompt="%F{${_shsh_colors[branch]}}${REPLY}%f"
+
+    if [[ -n $_shsh_git_dirty ]]; then
+      plain+=$_shsh_git_dirty
+      _shsh_escape "$_shsh_git_dirty"
+      prompt+="%F{${_shsh_colors[dirty]}}${REPLY}%f"
+    fi
+    if [[ -n $_shsh_git_conflict ]]; then
+      plain+=$_shsh_git_conflict
+      prompt+="%F{${_shsh_colors[conflict]}}${_shsh_git_conflict}%f"
+    fi
+    if [[ -n $_shsh_git_action ]]; then
+      plain+=" ${_shsh_git_action}"
+      _shsh_escape "$_shsh_git_action"
+      prompt+=" %F{${_shsh_colors[git_action]}}${REPLY}%f"
+    fi
+    if [[ -n $_shsh_git_arrows ]]; then
+      plain+=" ${_shsh_git_arrows}"
+      prompt+=" %F{${_shsh_colors[git_sync]}}${_shsh_git_arrows}%f"
+    fi
+    if [[ -n $_shsh_git_stash ]]; then
+      plain+=" ${_shsh_git_stash}"
+      prompt+=" %F{${_shsh_colors[stash]}}${_shsh_git_stash}%f"
+    fi
+  fi
+
+  typeset -g _shsh_git_plain=$plain
+  typeset -g _shsh_git_prompt=$prompt
+}
+
+_shsh_async_init() {
+  REPLY=0
+  if (( ${_shsh_async_ready:-0} )); then
+    if zpty -t _shsh &>/dev/null; then
+      REPLY=1
+      return 0
+    fi
+    typeset -gi _shsh_async_ready=0
+  fi
+  (( $+functions[async_start_worker] )) || return 1
+
+  # A flushed pid can remain in jobstates briefly; -u would drop its replacement.
+  if ! async_start_worker _shsh -n 2>/dev/null; then
+    return 1
+  fi
+  async_register_callback _shsh _shsh_async_callback
+  typeset -gi _shsh_async_ready=1
+}
+
+_shsh_fetch_init() {
+  if (( ${_shsh_fetch_ready:-0} )); then
+    if zpty -t _shsh_fetch &>/dev/null; then
+      return 0
+    fi
+    typeset -gi _shsh_fetch_ready=0
+  fi
+  (( $+functions[async_start_worker] )) || return 1
+
+  if ! async_start_worker _shsh_fetch -n 2>/dev/null; then
+    return 1
+  fi
+  async_register_callback _shsh_fetch _shsh_fetch_callback
+  typeset -gi _shsh_fetch_ready=1
+}
+
+_shsh_maybe_fetch() {
+  local workdir=$1 top=$2
+  local -i now last
+
+  [[ -n $top && $top != $HOME ]] || return 0
+  now=$EPOCHSECONDS
+  last=${_shsh_fetch_attempted_at[$top]:-0}
+  (( now - last >= _shsh_fetch_interval )) || return 0
+  _shsh_fetch_init || return 0
+  if async_job _shsh_fetch _shsh_async_git_fetch "$workdir" "$top"; then
+    _shsh_fetch_attempted_at[$top]=$now
+  fi
+}
+
+_shsh_update_fetch_aliases() {
+  local generation=$1 workdir=$2 top=$3
+
+  if [[ $top == ${_shsh_fetch_alias_top-} ]]; then
+    typeset -ga _shsh_fetch_commands=(pull fetch $_shsh_fetch_aliases)
+    return
+  fi
+
+  typeset -ga _shsh_fetch_commands=(pull fetch)
+  async_job _shsh _shsh_async_git_aliases \
+    "$generation" "$workdir" "$top" || true
+}
+
+_shsh_async_refresh() {
+  local workdir=$PWD
+  local -i reuse_worker=0
+
+  if [[ ${_shsh_async_pwd-} != $workdir ]]; then
+    _shsh_clear_git_state
+    typeset -g _shsh_async_pwd=$workdir
+    _shsh_render
+  fi
+
+  (( ++_shsh_generation ))
+  _shsh_async_init || return
+  reuse_worker=$REPLY
+  if (( reuse_worker )); then
+    async_flush_jobs _shsh 2>/dev/null || true
+  fi
+  async_job _shsh _shsh_async_git_branch \
+    $_shsh_generation "$workdir" || return
+  async_job _shsh _shsh_async_git_status \
+    $_shsh_generation "$workdir" || return
+
+  if _shsh_kube_signature; then
+    typeset -g _shsh_kube_current_signature=$REPLY
+    if [[ $_shsh_kube_loaded_signature != $REPLY ]]; then
+      async_job _shsh _shsh_async_kube \
+        $_shsh_generation "$workdir" "$REPLY" "${KUBECONFIG-}" || return
+    fi
+  else
+    typeset -g _shsh_kube_current_signature=
+    typeset -g _shsh_kube_loaded_signature=
+    typeset -g _shsh_kube_context=
+    typeset -g _shsh_kube_namespace=
+    _shsh_update_kube_render
+  fi
+}
+
+_shsh_async_redraw() {
+  _shsh_render
+  [[ ${CONTEXT-} == cont ]] && return 0
+  zle && zle .reset-prompt
+  return 0
+}
+
+_shsh_apply_async_result() {
+  local job=$1 code=$2 output=$3 previous
+  local -i changed=0
+  local -a result
+
+  REPLY=0
+  result=("${(Q@)${(z)output}}")
+  (( ${#result} >= 2 )) || return 0
+  [[ ${result[1]} == $_shsh_generation ]] || return 0
+  [[ ${result[2]} == $PWD ]] || return 0
+
+  case $job in
+    (_shsh_async_git_branch)
+      (( ${#result} == 5 )) || return 0
+      previous=$_shsh_git_prompt
+      _shsh_git_top=${result[3]}
+      _shsh_git_branch=${result[4]}
+      _shsh_git_action=${result[5]}
+      if [[ -z $_shsh_git_top ]]; then
+        _shsh_clear_git_state
+        typeset -g _shsh_fetch_alias_top=
+        typeset -ga _shsh_fetch_aliases=()
+      else
+        async_job _shsh _shsh_async_git_arrows \
+          "${result[1]}" "${result[2]}" || true
+        _shsh_update_fetch_aliases \
+          "${result[1]}" "${result[2]}" "$_shsh_git_top"
+        _shsh_maybe_fetch "${result[2]}" "$_shsh_git_top"
+      fi
+      _shsh_update_git_render
+      [[ $previous != $_shsh_git_prompt ]] && changed=1
+      ;;
+    (_shsh_async_git_status)
+      (( ${#result} == 5 )) || return 0
+      previous=$_shsh_git_prompt
+      _shsh_git_dirty=${result[3]}
+      _shsh_git_conflict=${result[4]}
+      _shsh_git_stash=${result[5]}
+      _shsh_update_git_render
+      [[ $previous != $_shsh_git_prompt ]] && changed=1
+      ;;
+    (_shsh_async_git_arrows)
+      (( ${#result} == 3 )) || return 0
+      previous=$_shsh_git_prompt
+      _shsh_git_arrows=${result[3]}
+      _shsh_update_git_render
+      [[ $previous != $_shsh_git_prompt ]] && changed=1
+      ;;
+    (_shsh_async_git_aliases)
+      (( code == 0 && ${#result} == 4 )) || return 0
+      [[ -n ${result[3]} && ${result[3]} == ${_shsh_git_top-} ]] || return 0
+      typeset -g _shsh_fetch_alias_top=${result[3]}
+      if [[ -n ${result[4]} ]]; then
+        typeset -ga _shsh_fetch_aliases=("${(s: :)result[4]}")
+      else
+        typeset -ga _shsh_fetch_aliases=()
+      fi
+      typeset -ga _shsh_fetch_commands=(pull fetch $_shsh_fetch_aliases)
+      ;;
+    (_shsh_async_kube)
+      (( ${#result} == 5 )) || return 0
+      [[ ${result[3]} == $_shsh_kube_current_signature ]] || return 0
+      previous=$_shsh_kube_prompt
+      _shsh_kube_loaded_signature=${result[3]}
+      _shsh_kube_context=${result[4]}
+      _shsh_kube_namespace=${result[5]}
+      _shsh_update_kube_render
+      [[ $previous != $_shsh_kube_prompt ]] && changed=1
+      ;;
+  esac
+  REPLY=$changed
+  return 0
+}
+
+_shsh_async_callback() {
+  setopt localoptions noshwordsplit
+  local job=$1 code=$2 output=$3 next_pending=$6
+  local previous
+  local -i do_render=0
+
+  if [[ $job == '[async]' ]]; then
+    if (( code == 2 || code == 3 || code == 130 )); then
+      previous=$_shsh_git_prompt
+      typeset -gi _shsh_async_ready=0
+      async_stop_worker _shsh 2>/dev/null || true
+      _shsh_clear_git_state
+      [[ $previous != $_shsh_git_prompt ]] && do_render=1
+      if (( ! ${_shsh_async_restarting:-0} )); then
+        typeset -gi _shsh_async_restarting=1
+        _shsh_async_refresh
+        _shsh_async_restarting=0
+      fi
+    fi
+    if (( ${_shsh_async_render_requested:-0} || do_render )); then
+      _shsh_async_render_requested=0
+      _shsh_async_redraw
+    fi
+    return 0
+  fi
+
+  _shsh_apply_async_result "$job" "$code" "$output"
+  do_render=$REPLY
+
+  if (( next_pending )); then
+    (( do_render )) && typeset -gi _shsh_async_render_requested=1
+    return
+  fi
+  if (( ${_shsh_async_render_requested:-0} || do_render )); then
+    _shsh_async_render_requested=0
+    _shsh_async_redraw
+  fi
+  return 0
+}
+
+_shsh_fetch_callback() {
+  setopt localoptions noshwordsplit
+  local job=$1 code=$2 output=$3 previous
+  local -a result
+
+  if [[ $job == '[async]' ]]; then
+    if (( code == 2 || code == 3 || code == 130 )); then
+      typeset -gi _shsh_fetch_ready=0
+      async_stop_worker _shsh_fetch 2>/dev/null || true
+    fi
+    return 0
+  fi
+
+  [[ $job == _shsh_async_git_fetch ]] || return 0
+  result=("${(Q@)${(z)output}}")
+  (( ${#result} == 3 && code == 0 && result[2] )) || return 0
+  [[ -n ${result[1]} && ${result[1]} == ${_shsh_git_top-} ]] || return 0
+
+  previous=$_shsh_git_prompt
+  _shsh_git_arrows=${result[3]}
+  _shsh_update_git_render
+  [[ $previous != $_shsh_git_prompt ]] && _shsh_async_redraw
+  return 0
+}
+
+_shsh_command_conflicts_with_fetch() {
+  local command_line=$1 token
+  local -i seen_git=0
+  local -a tokens
+  tokens=("${(z)command_line}")
+
+  for token in $tokens; do
+    if (( ! seen_git )); then
+      [[ $token == git || $token == hub ]] && seen_git=1
+      continue
+    fi
+    (( ${_shsh_fetch_commands[(Ie)$token]} )) && return 0
+  done
+  return 1
+}
+
+_shsh_preexec() {
+  if _shsh_command_conflicts_with_fetch "$2"; then
+    if (( ${_shsh_fetch_ready:-0} )); then
+      async_flush_jobs _shsh_fetch 2>/dev/null || true
+    fi
+    if [[ -n ${_shsh_git_top-} ]]; then
+      _shsh_fetch_attempted_at[$_shsh_git_top]=$EPOCHSECONDS
+    fi
+  fi
+  typeset -gF _shsh_command_started=$EPOCHREALTIME
+  _shsh_set_title "${PWD:t}: $2"
+}
+
+_shsh_render() {
+  setopt localoptions noshwordsplit
+
+  local path_text=${(%):-%~}
+  local time_text=$_shsh_time
+  local identity_plain identity_prompt suspended_plain suspended_prompt
+  local duration_plain duration_prompt right_plain right_prompt
+  local left_plain left_prompt path_prompt separator
+  local -a prefix_plain prefix_prompt suffix_plain suffix_prompt
+  local -i columns=${COLUMNS:-0} nonpath_width nonpath_count path_limit
+  local -i left_width right_width padding=0
+
+  (( columns > 0 )) || columns=80
+
+  if ((${(M)#jobstates:#suspended:*})); then
+    suspended_plain='✦'
+    suspended_prompt="%F{${_shsh_colors[warning]}}✦%f"
+    prefix_plain+=($suspended_plain)
+    prefix_prompt+=($suspended_prompt)
+  fi
+
+  if (( _shsh_show_identity )); then
+    identity_plain=${(%):-%n@%m}
+    _shsh_escape "$identity_plain"
+    identity_prompt="%F{${_shsh_identity_color}}${REPLY}%f"
+    prefix_plain+=($identity_plain)
+    prefix_prompt+=($identity_prompt)
+  fi
+
+  if [[ -n ${_shsh_git_plain-} ]]; then
+    suffix_plain+=("$_shsh_git_plain")
+    suffix_prompt+=("$_shsh_git_prompt")
+  fi
+  if [[ -n ${_shsh_kube_plain-} ]]; then
+    suffix_plain+=("$_shsh_kube_plain")
+    suffix_prompt+=("$_shsh_kube_prompt")
+  fi
+
+  if [[ -n ${_shsh_command_duration-} ]]; then
+    duration_plain=$_shsh_command_duration
+    _shsh_escape "$duration_plain"
+    duration_prompt="%F{${_shsh_colors[warning]}}${REPLY}%f"
+  fi
+
+  right_plain="${duration_plain:+${duration_plain} }${time_text}"
+  right_prompt="${duration_prompt:+${duration_prompt} }%F{${_shsh_colors[subtle]}}${time_text}%f"
+
+  nonpath_width=0
+  local part
+  for part in $prefix_plain $suffix_plain; do
+    (( nonpath_width += ${#part} ))
+  done
+  nonpath_count=$(( ${#prefix_plain} + ${#suffix_plain} ))
+
+  right_width=${#right_plain}
+  path_limit=$(( columns - 1 - nonpath_width - nonpath_count - right_width - 2 ))
+
+  if (( path_limit < 8 )); then
+    right_plain=$duration_plain
+    right_prompt=$duration_prompt
+    right_width=${#right_plain}
+    path_limit=$(( columns - 1 - nonpath_width - nonpath_count - right_width - (right_width ? 2 : 0) ))
+  fi
+  if (( path_limit < 8 )); then
+    right_plain=
+    right_prompt=
+    right_width=0
+    path_limit=$(( columns - 1 - nonpath_width - nonpath_count ))
+  fi
+
+  (( path_limit < 1 )) && path_limit=1
+  _shsh_shorten_path "$path_text" $path_limit
+  path_text=$REPLY
+  _shsh_escape "$path_text"
+  path_prompt="%F{${_shsh_colors[path]}}${REPLY}%f"
+
+  local -a all_plain all_prompt
+  all_plain=($prefix_plain "$path_text" $suffix_plain)
+  all_prompt=($prefix_prompt "$path_prompt" $suffix_prompt)
+  left_plain="${(j: :)all_plain}"
+  left_prompt="${(j: :)all_prompt}"
+  left_width=${#left_plain}
+
+  if (( right_width )); then
+    padding=$(( columns - left_width - right_width ))
+    (( padding < 2 )) && padding=2
+    printf -v separator '%*s' $padding ''
+  else
+    separator=
+  fi
+
+  typeset -g _shsh_render_left_plain=$left_plain
+  typeset -g _shsh_render_right_plain=$right_plain
+  typeset -gi _shsh_render_padding=$padding
+
+  local indicator_color=$_shsh_colors[success]
+  (( _shsh_last_status )) && indicator_color=$_shsh_colors[failure]
+  PROMPT="${left_prompt}${separator}${right_prompt}"$'\n'"%F{${indicator_color}}❯%f "
+  RPROMPT=
+}
+
+_shsh_precmd() {
+  local -i last_status=$?
+  print
+  typeset -gi _shsh_last_status=$last_status
+  typeset -g _shsh_command_duration=
+  typeset -g _shsh_time=${(%):-%D{%H:%M:%S}}
+
+  if [[ -n ${_shsh_command_started-} ]]; then
+    local -i elapsed=$(( EPOCHREALTIME - _shsh_command_started ))
+    if (( elapsed > 5 )); then
+      _shsh_human_time $elapsed
+      _shsh_command_duration=$REPLY
+    fi
+    unset _shsh_command_started
+  fi
+
+  _shsh_set_title "${(%):-%~}"
+  _shsh_render
+  _shsh_async_refresh
+}
+
+_shsh_detect_identity
+typeset -gi _shsh_last_status=0
+_shsh_clear_git_state
+typeset -g _shsh_kube_plain=
+typeset -g _shsh_kube_prompt=
+typeset -g _shsh_kube_context=
+typeset -g _shsh_kube_namespace=
+typeset -g _shsh_kube_current_signature=
+typeset -g _shsh_kube_loaded_signature=
+typeset -g _shsh_fetch_alias_top=
+typeset -ga _shsh_fetch_aliases=()
+typeset -g _shsh_time=${(%):-%D{%H:%M:%S}}
+typeset -gi _shsh_generation=0
+typeset -gi _shsh_async_ready=0
+typeset -gi _shsh_async_restarting=0
+typeset -gi _shsh_async_render_requested=0
+typeset -gi _shsh_fetch_ready=0
+typeset -gi _shsh_fetch_interval=300
+typeset -gA _shsh_fetch_attempted_at=()
+
+add-zsh-hook -d precmd _shsh_precmd 2>/dev/null
+add-zsh-hook -d preexec _shsh_preexec 2>/dev/null
+add-zsh-hook precmd _shsh_precmd
+add-zsh-hook preexec _shsh_preexec
+
+PROMPT2="%F{${_shsh_colors[subtle]}}… %(1_.%_ .%_)%f%(?.%F{${_shsh_colors[success]}}.%F{${_shsh_colors[failure]}})❯%f "
+PROMPT4="%F{${_shsh_colors[warning]}}%e%f %F{${_shsh_colors[path]}}%x%f%F{${_shsh_colors[subtle]}}:%I @ %f%F{${_shsh_colors[branch]}}%N%f%F{${_shsh_colors[subtle]}}:%i >%f "
+PROMPT_EOL_MARK=
+
+_shsh_render
