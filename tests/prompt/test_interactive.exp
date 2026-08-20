@@ -4,12 +4,13 @@ set timeout 10
 set source_zdotdir [file normalize [file join [file dirname [info script]] ../.. dot_config zsh]]
 set async_zsh_path $env(ASYNC_ZSH_PATH)
 set fixture $env(PROMPT_TEST_FIXTURE)
+set test_zdotdir $env(PROMPT_TEST_ZDOTDIR)
 
 cd /private/tmp
 set env(TERM) xterm-256color
 spawn -noecho zsh -dfi
 
-send -- "source $async_zsh_path; export ZDOTDIR=$source_zdotdir; source $source_zdotdir/dot_zshrc.d/02_prompt.zsh\r"
+send -- "source $async_zsh_path; export ZDOTDIR=$test_zdotdir; source $source_zdotdir/dot_zshrc\r"
 expect {
   -re {❯} {}
   timeout { puts stderr "initial prompt timeout"; exit 1 }

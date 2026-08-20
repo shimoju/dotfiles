@@ -19,10 +19,19 @@ assert() {
 
 typeset _repo_root=${0:A:h:h:h}
 typeset _source_zdotdir="${_repo_root}/dot_config/zsh"
+typeset _test_zdotdir=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-entrypoint.XXXXXXXX")
+
+cleanup() {
+  async_stop_worker _shsh 2>/dev/null || true
+  rm -rf -- "$_test_zdotdir"
+}
+trap cleanup EXIT
+
+ln -s "${_source_zdotdir}/prompt" "${_test_zdotdir}/prompt"
 
 source "$ASYNC_ZSH_PATH"
-ZDOTDIR=$_source_zdotdir
-source "${_source_zdotdir}/dot_zshrc.d/02_prompt.zsh"
+ZDOTDIR=$_test_zdotdir
+source "${_source_zdotdir}/dot_zshrc"
 
 assert 'precmd hook is registered' \
   test "${precmd_functions[(Ie)_shsh_precmd]}" -gt 0
@@ -35,7 +44,6 @@ assert 'input line contains only the prompt symbol' \
 assert 'right prompt is unused' \
   test -z "$RPROMPT"
 assert 'theme directory is first in fpath' \
-  test "$fpath[1]" = "${_source_zdotdir}/prompt"
+  test "$fpath[1]" = "${_test_zdotdir}/prompt"
 
-async_stop_worker _shsh 2>/dev/null || true
 (( _failures == 0 ))
