@@ -23,6 +23,7 @@ typeset _test_zdotdir=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-entrypoint.XXXXXX
 
 cleanup() {
   async_stop_worker _shsh 2>/dev/null || true
+  async_stop_worker _shsh_fetch 2>/dev/null || true
   rm -rf -- "$_test_zdotdir"
 }
 trap cleanup EXIT

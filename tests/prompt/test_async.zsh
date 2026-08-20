@@ -41,6 +41,7 @@ export GIT_CONFIG_NOSYSTEM=1
 
 cleanup() {
   async_stop_worker _shsh 2>/dev/null || true
+  async_stop_worker _shsh_fetch 2>/dev/null || true
   rm -rf -- "$_fixture_root"
 }
 trap cleanup EXIT
@@ -74,6 +75,32 @@ assert_equal '?' "$_shsh_git_dirty" 'worker publishes untracked status asynchron
 assert_equal 'main?' "$_shsh_git_plain" 'callback redraws the combined Git segment'
 assert_equal 'pull fetch pl' "${(j: :)_shsh_fetch_commands}" \
   'worker publishes fetching aliases into the repository cache'
+
+async_stop_worker _shsh_fetch 2>/dev/null || true
+_shsh_fetch_ready=0
+_shsh_fetch_attempted_at[$_fixture_root]=0
+_shsh_async_git_fetch() {
+  local arrows='⇣'
+  sleep 0.3
+  print -r -- ${(q)2} 1 ${(q)arrows}
+}
+_shsh_maybe_fetch "$_fixture_root" "$_fixture_root"
+_shsh_async_refresh
+repeat 40; do
+  sleep 0.05
+  async_process_results _shsh _shsh_async_callback 2>/dev/null || true
+  async_process_results _shsh_fetch _shsh_fetch_callback 2>/dev/null || true
+  [[ $_shsh_git_arrows == '⇣' ]] && break
+done
+assert_equal '⇣' "$_shsh_git_arrows" \
+  'local worker refresh does not interrupt the fetch worker'
+
+async_stop_worker _shsh_fetch
+_shsh_fetch_attempted_at[$_fixture_root]=0
+_shsh_maybe_fetch "$_fixture_root" "$_fixture_root"
+typeset -i _fetch_worker_restarted=0
+zpty -t _shsh_fetch &>/dev/null && _fetch_worker_restarted=1
+assert_equal 1 "$_fetch_worker_restarted" 'fetch worker restarts after an unexpected stop'
 
 typeset _old_generation=$_shsh_generation
 builtin cd -q -- "$_repo_root"

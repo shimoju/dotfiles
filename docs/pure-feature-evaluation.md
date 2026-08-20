@@ -68,7 +68,7 @@ Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずS
 | [x] | Git操作中の状態 | rebase、merge、cherry-pickなど | 条件付き表示なので採用 |
 | [x] | ahead／behind | `⇡`／`⇣` | branch確定後に軽量な`rev-list` jobで先行表示し、fetch後も同じ計算を再利用する |
 | [x] | stash | stashがあれば`≡` | 現在も有効。非同期で採用 |
-| [x] | 自動fetch | 既定で有効 | 常時有効。入力を待たせず、tag、prune、submoduleを対象外にして失敗を静かに扱う |
+| [x] | 自動fetch | 既定で有効 | 常時有効。shellごと・リポジトリごとに5分に1回までとし、専用workerでローカルGit処理から分離する。tag、prune、submoduleを対象外にして失敗を静かに扱う |
 | [ ] | upstreamだけfetch | opt-in | 専用設定を持たず、Git標準のfetch動作へ固定する |
 | [ ] | Git表示全体の無効化 | `zstyle`で設定可能 | 専用設定を持たない。障害時は自動的にGit表示なしへ縮退する |
 | [ ] | 未追跡ファイルの除外 | 設定可能 | 専用設定を持たず、常に未追跡ファイルを表示する |
@@ -77,9 +77,9 @@ Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずS
 | [x] | Git処理の非同期化 | `zsh-async` worker | 自作版の中心要件 |
 | [x] | 段階的な表示 | branch、dirtyなどを別callbackで反映 | Pureと同等の体感速度に必要 |
 | [x] | 古い結果の破棄 | generationとPWDを照合 | `cd`競合を防ぐため必須 |
-| [x] | 実行中処理のcancel | 作業ツリー変更時にflush | 必須 |
-| [x] | 同名jobの重複防止 | unique job | Enter連打時の負荷を抑えるため採用 |
-| [x] | foreground Gitとの競合回避 | pull／fetch実行時にbackground fetchをcancel | lock・通信競合を避けるため採用 |
+| [x] | 実行中処理のcancel | 作業ツリー変更時にflush | ローカルGit workerだけを更新ごとにflushし、通信中のfetchは継続させる |
+| [x] | 同名jobの重複防止 | unique job | ローカルGit jobはunique worker、fetchはリポジトリ単位の5分制限で重複を防ぐ |
+| [x] | foreground Gitとの競合回避 | pull／fetch実行時にbackground fetchをcancel | fetch専用workerだけをcancelし、そのリポジトリの5分間隔も更新する |
 | [x] | 認証promptの抑止 | fetchでterminal prompt、SSH password、GPG TTYを無効化 | background jobから端末を壊さないため必須 |
 | [x] | worker障害時の縮退 | 再起動し、失敗時はGit表示を消す | プロンプト入力を最優先する |
 | [ ] | workerの低優先度化 | `renice`、利用可能なら`ionice` | 初期化用の非同期jobとcancelが競合するため採用しない。Git処理自体を入力経路から外すことを優先する |
@@ -190,7 +190,7 @@ Pureはdirty checkに5秒を超えたリポジトリを遅いと判定し、そ�
 
 1. 同期部分だけで入力プロンプトを即座に返す。
 2. ブランチを早い段階で追加する。
-3. ahead／behindを軽量jobで先に返し、dirty、stash、fetchを入力から切り離す。
+3. ahead／behindを軽量jobで先に返し、dirtyとstashを入力から切り離す。fetchはさらに専用workerへ分離し、shellごと・リポジトリごとに5分に1回までとする。
 4. 非同期結果にgenerationとPWDを持たせ、古い結果を捨てる。
 5. workerが失敗しても、Git情報がないだけの通常プロンプトへ縮退する。
 6. 表示結果を独自にcacheせず、Git標準のFSMonitorとuntracked cacheを透過的に利用する。

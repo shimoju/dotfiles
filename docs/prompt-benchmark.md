@@ -240,6 +240,30 @@ CleanのGit状態完了は中央値で2.611 ms、worker内計算は2.824 ms遅�
 
 fetch完了後の同期状態更新だけを切り出した30回測定では、再度`git status`する従来方式が中央値154.726 ms、`git rev-list --left-right --count`を使う改善後が4.068 msだった。約38倍軽く、fetch後の不要な作業ツリー走査を除去できた。
 
+### 自動fetchの間隔制限とworker分離
+
+2026-08-20に、自動fetchをshellごと・リポジトリごとに5分に1回までに制限し、ローカルGit処理とは別の永続workerへ移した。間隔はfetchの成功時ではなくqueue投入時に記録するため、通信失敗や認証失敗が続いても同じshellからremoteを短時間に再試行しない。foregroundで`git pull`／`git fetch`または同等のGit aliasを実行した場合は、background fetchだけをcancelして同じ間隔を更新する。複数shell間で時刻を共有するためのmarker fileは作らず、プロンプトがリポジトリへ独自状態を書き込まない方針を維持する。
+
+LLVM clone上で400 msかかるfetchを模したjobを使い、50 ms間隔で10回promptを更新した結果は次のとおり。
+
+| 実装 | fetch開始 | 中断 | 完了 |
+|---|---:|---:|---:|
+| 改善前（ローカルGit workerと共有） | 10 | 9 | 1 |
+| 改善後（5分制限 + 専用worker） | 1 | 0 | 1 |
+
+改善前はprompt更新のたびにworkerがflushされ、進行中のfetchを中断して再投入した。改善後は最初の1回だけqueueへ入り、その後もローカルbranch／statusの更新に影響されず完了した。
+
+ネットワーク処理を成功するno-opへ差し替えた通常ベンチマークでも、同期表示とローカルGit処理に実質的な回帰はなかった。単位はms。Cleanは変更直前・直後を各15回、Dirtyは同じローカルGit実装の既存30回と変更後30回を比較した。
+
+| 状態 | 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
+|---|---|---:|---:|---:|---:|
+| Clean | 改善前 | 0.983 / 4.067 | 12.301 / 22.628 | 491.057 / 496.049 | 487.906 / 492.186 |
+| Clean | 改善後 | 0.932 / 4.451 | 11.737 / 28.868 | 489.430 / 498.277 | 486.216 / 491.894 |
+| Dirty | 改善前 | 0.973 / 3.864 | 12.298 / 18.095 | 492.645 / 510.956 | 489.661 / 507.663 |
+| Dirty | 改善後 | 0.933 / 1.113 | 12.028 / 13.248 | 492.861 / 501.869 | 489.751 / 498.751 |
+
+中央値の差はCleanで初期表示−0.051 ms、branch−0.564 ms、Git状態完了−1.627 ms、Dirtyでそれぞれ−0.040 ms、−0.270 ms、+0.216 msだった。いずれも測定揺らぎの範囲で、専用workerと5分判定を追加しても入力開始やローカルGit表示は遅くなっていない。Cleanのbranch p95は15回中の外れ値1回に影響されている。
+
 ## Git標準の高速化機能
 
 未追跡ファイルを除外するとGit状態は速くなるが、プロンプトから`?`が欠落する。完全な状態を維持したまま高速化できるか、同じLLVM cloneでGit組み込み[FSMonitor](https://git-scm.com/docs/git-fsmonitor--daemon)と[untracked cache](https://git-scm.com/docs/git-status.html#_untracked_files_and_performance)を比較した。

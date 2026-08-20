@@ -119,12 +119,14 @@ _shsh_title_prefix=$_saved_title_prefix
 unset SSH_CONNECTION
 
 typeset -gi _zpty_checks=0 _flushes=0
+typeset -ga _flushed_workers=()
 zpty() {
   (( ++_zpty_checks ))
   return 0
 }
 async_flush_jobs() {
   (( ++_flushes ))
+  _flushed_workers+=("$1")
 }
 async_job() {
   return 0
@@ -137,8 +139,70 @@ _shsh_async_ready=1
 _shsh_async_refresh
 assert_equal 1 "$_zpty_checks" 'checks a ready worker only once per refresh'
 assert_equal 1 "$_flushes" 'flushes jobs after reusing a live worker'
+assert_equal _shsh "${_flushed_workers[1]}" \
+  'local refresh flushes only the local Git worker'
 unfunction zpty async_flush_jobs async_job
 functions[_shsh_kube_signature]=$functions[_saved_kube_signature]
 unfunction _saved_kube_signature
+
+typeset -ga _queued_workers=() _queued_functions=()
+zpty() {
+  return 0
+}
+async_job() {
+  _queued_workers+=("$1")
+  _queued_functions+=("$2")
+  return 0
+}
+typeset _test_fetch_top=/tmp/shsh-fetch-repository
+_shsh_fetch_ready=1
+_shsh_fetch_interval=300
+_shsh_fetch_attempted_at[$_test_fetch_top]=$(( EPOCHSECONDS - 299 ))
+_shsh_maybe_fetch /tmp/shsh-fetch-repository "$_test_fetch_top"
+assert_equal 0 "${#_queued_workers}" 'does not fetch again inside the five-minute interval'
+
+_shsh_fetch_attempted_at[$_test_fetch_top]=$(( EPOCHSECONDS - 300 ))
+_shsh_maybe_fetch /tmp/shsh-fetch-repository "$_test_fetch_top"
+assert_equal 1 "${#_queued_workers}" 'queues fetch when the five-minute interval expires'
+assert_equal _shsh_fetch "${_queued_workers[1]}" 'queues network work on the fetch worker'
+assert_equal _shsh_async_git_fetch "${_queued_functions[1]}" \
+  'queues the dedicated fetch job'
+_shsh_maybe_fetch /tmp/shsh-fetch-repository "$_test_fetch_top"
+assert_equal 1 "${#_queued_workers}" 'records the interval when the fetch is queued'
+_shsh_maybe_fetch /tmp/shsh-other-repository /tmp/shsh-other-repository
+assert_equal 2 "${#_queued_workers}" 'tracks the five-minute interval per repository'
+unfunction zpty async_job
+
+functions[_saved_async_redraw]=$functions[_shsh_async_redraw]
+typeset -gi _fetch_redraws=0
+_shsh_async_redraw() {
+  (( ++_fetch_redraws ))
+}
+_shsh_git_top=$_test_fetch_top
+_shsh_git_branch=main
+_shsh_git_arrows=
+_shsh_update_git_render
+typeset _test_down_arrow='⇣' _test_up_arrow='⇡'
+typeset _fetch_output="${(q)_test_fetch_top} 1 ${(q)_test_down_arrow}"
+_shsh_fetch_callback _shsh_async_git_fetch 0 "$_fetch_output" 0 '' 0
+assert_equal '⇣' "$_shsh_git_arrows" 'applies a completed fetch for the visible repository'
+assert_equal 1 "$_fetch_redraws" 'redraws when fetch changes ahead or behind state'
+_shsh_fetch_callback _shsh_async_git_fetch 0 "/tmp/other 1 ${(q)_test_up_arrow}" 0 '' 0
+assert_equal '⇣' "$_shsh_git_arrows" 'ignores a completed fetch for another repository'
+functions[_shsh_async_redraw]=$functions[_saved_async_redraw]
+unfunction _saved_async_redraw
+
+typeset -ga _foreground_flushes=()
+async_flush_jobs() {
+  _foreground_flushes+=("$1")
+}
+_shsh_fetch_ready=1
+_shsh_fetch_commands=(pull fetch)
+_shsh_preexec '' 'git fetch origin'
+assert_equal _shsh_fetch "${_foreground_flushes[1]}" \
+  'foreground fetch cancels only the network worker'
+assert_true '(( _shsh_fetch_attempted_at[$_test_fetch_top] == EPOCHSECONDS ))' \
+  'foreground fetch resets the repository interval'
+unfunction async_flush_jobs
 
 print -r -- "1..${_test_count}"

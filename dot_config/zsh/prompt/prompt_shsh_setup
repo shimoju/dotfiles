@@ -234,11 +234,11 @@ _shsh_async_git_aliases() {
 }
 
 _shsh_async_git_fetch() {
-  local generation=$1 workdir=$2 top arrows= success=0
+  local workdir=$1 expected_top=$2 top arrows= success=0
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
   top=$(command git rev-parse --show-toplevel 2>/dev/null) || top=
-  if [[ -n $top && $top != $HOME ]]; then
+  if [[ -n $top && $top == $expected_top && $top != $HOME ]]; then
     export GIT_TERMINAL_PROMPT=0
     export GIT_ASKPASS=true
     export GCM_INTERACTIVE=never
@@ -258,7 +258,7 @@ _shsh_async_git_fetch() {
     fi
   fi
 
-  print -r -- ${(q)generation} ${(q)workdir} $success ${(q)arrows}
+  print -r -- ${(q)top} $success ${(q)arrows}
 }
 
 _shsh_kube_signature() {
@@ -383,6 +383,36 @@ _shsh_async_init() {
   typeset -gi _shsh_async_ready=1
 }
 
+_shsh_fetch_init() {
+  if (( ${_shsh_fetch_ready:-0} )); then
+    if zpty -t _shsh_fetch &>/dev/null; then
+      return 0
+    fi
+    typeset -gi _shsh_fetch_ready=0
+  fi
+  (( $+functions[async_start_worker] )) || return 1
+
+  if ! async_start_worker _shsh_fetch -n 2>/dev/null; then
+    return 1
+  fi
+  async_register_callback _shsh_fetch _shsh_fetch_callback
+  typeset -gi _shsh_fetch_ready=1
+}
+
+_shsh_maybe_fetch() {
+  local workdir=$1 top=$2
+  local -i now last
+
+  [[ -n $top && $top != $HOME ]] || return 0
+  now=$EPOCHSECONDS
+  last=${_shsh_fetch_attempted_at[$top]:-0}
+  (( now - last >= _shsh_fetch_interval )) || return 0
+  _shsh_fetch_init || return 0
+  if async_job _shsh_fetch _shsh_async_git_fetch "$workdir" "$top"; then
+    _shsh_fetch_attempted_at[$top]=$now
+  fi
+}
+
 _shsh_update_fetch_aliases() {
   local generation=$1 workdir=$2 top=$3
 
@@ -414,8 +444,6 @@ _shsh_async_refresh() {
   async_job _shsh _shsh_async_git_branch \
     $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_status \
-    $_shsh_generation "$workdir" || return
-  async_job _shsh _shsh_async_git_fetch \
     $_shsh_generation "$workdir" || return
 
   if _shsh_kube_signature; then
@@ -485,6 +513,7 @@ _shsh_async_callback() {
           "${result[1]}" "${result[2]}" || true
         _shsh_update_fetch_aliases \
           "${result[1]}" "${result[2]}" "$_shsh_git_top"
+        _shsh_maybe_fetch "${result[2]}" "$_shsh_git_top"
       fi
       _shsh_update_git_render
       [[ $previous != $_shsh_git_prompt ]] && do_render=1
@@ -515,15 +544,6 @@ _shsh_async_callback() {
       fi
       typeset -ga _shsh_fetch_commands=(pull fetch $_shsh_fetch_aliases)
       ;;
-    (_shsh_async_git_fetch)
-      (( ${#result} == 4 )) || return 0
-      if (( result[3] )); then
-        previous=$_shsh_git_prompt
-        _shsh_git_arrows=${result[4]}
-        _shsh_update_git_render
-        [[ $previous != $_shsh_git_prompt ]] && do_render=1
-      fi
-      ;;
     (_shsh_async_kube)
       (( ${#result} == 5 )) || return 0
       [[ ${result[3]} == $_shsh_kube_current_signature ]] || return 0
@@ -548,6 +568,31 @@ _shsh_async_callback() {
   return 0
 }
 
+_shsh_fetch_callback() {
+  setopt localoptions noshwordsplit
+  local job=$1 code=$2 output=$3 previous
+  local -a result
+
+  if [[ $job == '[async]' ]]; then
+    if (( code == 2 || code == 3 || code == 130 )); then
+      typeset -gi _shsh_fetch_ready=0
+      async_stop_worker _shsh_fetch 2>/dev/null || true
+    fi
+    return 0
+  fi
+
+  [[ $job == _shsh_async_git_fetch ]] || return 0
+  result=("${(Q@)${(z)output}}")
+  (( ${#result} == 3 && code == 0 && result[2] )) || return 0
+  [[ -n ${result[1]} && ${result[1]} == ${_shsh_git_top-} ]] || return 0
+
+  previous=$_shsh_git_prompt
+  _shsh_git_arrows=${result[3]}
+  _shsh_update_git_render
+  [[ $previous != $_shsh_git_prompt ]] && _shsh_async_redraw
+  return 0
+}
+
 _shsh_command_conflicts_with_fetch() {
   local command_line=$1 token
   local -i seen_git=0
@@ -565,9 +610,13 @@ _shsh_command_conflicts_with_fetch() {
 }
 
 _shsh_preexec() {
-  if (( ${_shsh_async_ready:-0} )) &&
-      _shsh_command_conflicts_with_fetch "$2"; then
-    async_flush_jobs _shsh 2>/dev/null || true
+  if _shsh_command_conflicts_with_fetch "$2"; then
+    if (( ${_shsh_fetch_ready:-0} )); then
+      async_flush_jobs _shsh_fetch 2>/dev/null || true
+    fi
+    if [[ -n ${_shsh_git_top-} ]]; then
+      _shsh_fetch_attempted_at[$_shsh_git_top]=$EPOCHSECONDS
+    fi
   fi
   typeset -gF _shsh_command_started=$EPOCHREALTIME
   _shsh_set_title "${PWD:t}: $2"
@@ -711,6 +760,9 @@ typeset -gi _shsh_generation=0
 typeset -gi _shsh_async_ready=0
 typeset -gi _shsh_async_restarting=0
 typeset -gi _shsh_async_render_requested=0
+typeset -gi _shsh_fetch_ready=0
+typeset -gi _shsh_fetch_interval=300
+typeset -gA _shsh_fetch_attempted_at=()
 
 add-zsh-hook -d precmd _shsh_precmd 2>/dev/null
 add-zsh-hook -d preexec _shsh_preexec 2>/dev/null

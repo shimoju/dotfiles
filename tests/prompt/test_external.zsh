@@ -60,9 +60,12 @@ command git -C "$_fixture_root/other" commit -qam remote
 command git -C "$_fixture_root/other" push -q
 
 typeset -a result
-result=("${(Q@)${(z)$(_shsh_async_git_fetch 9 "$_fixture_root/local")}}")
-assert_equal 1 "${result[3]}" 'background fetch succeeds without interaction'
-assert_equal '⇣' "${result[4]}" 'background fetch refreshes the behind marker'
+typeset _local_top=$(command git -C "$_fixture_root/local" rev-parse --show-toplevel)
+typeset _other_top=$(command git -C "$_fixture_root/other" rev-parse --show-toplevel)
+result=("${(Q@)${(z)$(_shsh_async_git_fetch "$_fixture_root/local" "$_local_top")}}")
+assert_equal "$_local_top" "${result[1]}" 'background fetch identifies its repository'
+assert_equal 1 "${result[2]}" 'background fetch succeeds without interaction'
+assert_equal '⇣' "${result[3]}" 'background fetch refreshes the behind marker'
 
 mkdir -p "$_fixture_root/fetch-bin"
 print -r -- '#!/bin/sh' > "$_fixture_root/fetch-bin/git"
@@ -78,8 +81,8 @@ PATH="$_fixture_root/fetch-bin:$PATH"
 rehash
 export PROMPT_TEST_GIT_TOP=$_fixture_root/local
 export PROMPT_TEST_GIT_LOG=$_fixture_root/fetch.log
-result=("${(Q@)${(z)$(_shsh_async_git_fetch 9 "$_fixture_root/local")}}")
-assert_equal 1 "${result[3]}" 'runs lightweight fetch inside a working tree'
+result=("${(Q@)${(z)$(_shsh_async_git_fetch "$_fixture_root/local" "$_fixture_root/local")}}")
+assert_equal 1 "${result[2]}" 'runs lightweight fetch inside a working tree'
 typeset -a _fetch_log=("${(@f)$(<"$PROMPT_TEST_GIT_LOG")}")
 assert_equal '-c gc.auto=0 -c maintenance.auto=0 -c fetch.prune=false fetch --quiet --no-tags --no-prune-tags --recurse-submodules=no' \
   "${_fetch_log[1]}" 'disables tags, pruning, and submodules during background fetch'
@@ -87,8 +90,8 @@ assert_equal 'x:' "${_fetch_log[2]}" 'exports an empty GPG_TTY to background fet
 
 PROMPT_TEST_GIT_TOP=$HOME
 PROMPT_TEST_GIT_LOG=$_fixture_root/home-fetch.log
-result=("${(Q@)${(z)$(_shsh_async_git_fetch 9 "$_fixture_root/local")}}")
-assert_equal 0 "${result[3]}" 'skips background fetch when HOME is the repository root'
+result=("${(Q@)${(z)$(_shsh_async_git_fetch "$_fixture_root/local" "$HOME")}}")
+assert_equal 0 "${result[2]}" 'skips background fetch when HOME is the repository root'
 assert_success 'does not invoke fetch for a repository rooted at HOME' \
   test ! -e "$PROMPT_TEST_GIT_LOG"
 PATH=$_saved_path
@@ -99,8 +102,6 @@ command git -C "$_fixture_root/local" config alias.sync 'pull --ff-only'
 command git -C "$_fixture_root/local" config alias.shell-sync '!git fetch --all'
 command git -C "$_fixture_root/local" config alias.review 'show refs/pull/123'
 command git -C "$_fixture_root/local" config alias.search 'log --grep=fetch'
-typeset _local_top=$(command git -C "$_fixture_root/local" rev-parse --show-toplevel)
-typeset _other_top=$(command git -C "$_fixture_root/other" rev-parse --show-toplevel)
 typeset _alias_output=$(_shsh_async_git_aliases 9 "$_fixture_root/local" "$_local_top")
 result=("${(Q@)${(z)_alias_output}}")
 assert_equal "$_local_top" "${result[3]}" 'keys fetching aliases by Git top-level'
