@@ -160,17 +160,12 @@ _shsh_async_git_branch() {
 
 _shsh_async_git_status() {
   local generation=$1 workdir=$2 line xy
-  local -i unstaged=0 staged=0 untracked=0 ahead=0 behind=0 stash=0
+  local -i unstaged=0 staged=0 untracked=0 stash=0
   local -a fields
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
   while IFS= read -r line; do
     case $line in
-      ('# branch.ab '*)
-        fields=(${=line})
-        ahead=${fields[3]#+}
-        behind=${fields[4]#-}
-        ;;
       ('# stash '*)
         fields=(${=line})
         stash=${fields[3]}
@@ -184,19 +179,37 @@ _shsh_async_git_status() {
     esac
   done < <(
     GIT_OPTIONAL_LOCKS=0 command git status \
-      --porcelain=v2 --branch --show-stash --untracked-files=normal --no-renames \
+      --porcelain=v2 --show-stash --untracked-files=normal --no-renames \
       2>/dev/null
   )
 
-  local dirty= arrows= stash_marker=
+  local dirty= stash_marker=
   (( unstaged )) && dirty+='*'
   (( staged )) && dirty+='+'
   (( untracked )) && dirty+='?'
-  (( behind )) && arrows+='⇣'
-  (( ahead )) && arrows+='⇡'
   (( stash )) && stash_marker='≡'
 
-  print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} ${(q)arrows} ${(q)stash_marker}
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} ${(q)stash_marker}
+}
+
+_shsh_git_arrows() {
+  local output
+  local -a counts
+
+  REPLY=
+  output=$(command git rev-list --left-right --count HEAD...@'{u}' 2>/dev/null) || return 0
+  counts=(${=output})
+  (( ${counts[2]:-0} )) && REPLY+='⇣'
+  (( ${counts[1]:-0} )) && REPLY+='⇡'
+  return 0
+}
+
+_shsh_async_git_arrows() {
+  local generation=$1 workdir=$2
+
+  builtin cd -q -- "$workdir" 2>/dev/null || return
+  _shsh_git_arrows
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)REPLY}
 }
 
 _shsh_async_git_aliases() {
@@ -214,9 +227,7 @@ _shsh_async_git_aliases() {
 }
 
 _shsh_async_git_fetch() {
-  local generation=$1 workdir=$2 line arrows= success=0
-  local -i ahead=0 behind=0
-  local -a fields
+  local generation=$1 workdir=$2 arrows= success=0
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
   if command git rev-parse --is-inside-work-tree &>/dev/null; then
@@ -229,19 +240,8 @@ _shsh_async_git_fetch() {
 
     if command git -c gc.auto=0 -c maintenance.auto=0 fetch --quiet </dev/null 2>/dev/null; then
       success=1
-      while IFS= read -r line; do
-        if [[ $line == '# branch.ab '* ]]; then
-          fields=(${=line})
-          ahead=${fields[3]#+}
-          behind=${fields[4]#-}
-          break
-        fi
-      done < <(
-        GIT_OPTIONAL_LOCKS=0 command git status \
-          --porcelain=v2 --branch --untracked-files=no --no-renames 2>/dev/null
-      )
-      (( behind )) && arrows+='⇣'
-      (( ahead )) && arrows+='⇡'
+      _shsh_git_arrows
+      arrows=$REPLY
     fi
   fi
 
@@ -395,6 +395,8 @@ _shsh_async_refresh() {
   _shsh_async_init || return
   async_job _shsh _shsh_async_git_branch \
     $_shsh_generation "$workdir" || return
+  async_job _shsh _shsh_async_git_arrows \
+    $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_status \
     $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_fetch \
@@ -470,11 +472,17 @@ _shsh_async_callback() {
       [[ $previous != $_shsh_git_prompt ]] && do_render=1
       ;;
     (_shsh_async_git_status)
-      (( ${#result} == 5 )) || return 0
+      (( ${#result} == 4 )) || return 0
       previous=$_shsh_git_prompt
       _shsh_git_dirty=${result[3]}
-      _shsh_git_arrows=${result[4]}
-      _shsh_git_stash=${result[5]}
+      _shsh_git_stash=${result[4]}
+      _shsh_update_git_render
+      [[ $previous != $_shsh_git_prompt ]] && do_render=1
+      ;;
+    (_shsh_async_git_arrows)
+      (( ${#result} == 3 )) || return 0
+      previous=$_shsh_git_prompt
+      _shsh_git_arrows=${result[3]}
       _shsh_update_git_render
       [[ $previous != $_shsh_git_prompt ]] && do_render=1
       ;;

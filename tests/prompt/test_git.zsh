@@ -59,8 +59,9 @@ assert_equal main "${result[4]}" 'reports the current branch'
 
 result=("${(Q@)${(z)$(_shsh_async_git_status 7 "$_fixture_root")}}")
 assert_equal '*+?' "${result[3]}" 'reports unstaged, staged, and untracked changes'
-assert_equal '⇣⇡' "${result[4]}" 'reports diverged upstream state'
-assert_equal '≡' "${result[5]}" 'reports a stash'
+assert_equal '≡' "${result[4]}" 'reports a stash'
+result=("${(Q@)${(z)$(_shsh_async_git_arrows 7 "$_fixture_root")}}")
+assert_equal '⇣⇡' "${result[3]}" 'reports diverged upstream state independently'
 
 _shsh_generation=8
 _shsh_git_branch=keep
@@ -86,15 +87,18 @@ assert_equal _shsh_async_git_aliases "${_queued_jobs[-1]}" \
   'queues alias discovery after entering a repository'
 assert_equal 1 "$_redraw_count" 'redraws when the branch changes'
 unfunction async_job
+_shsh_async_callback _shsh_async_git_arrows 0 \
+  "$(_shsh_async_git_arrows 7 "$_fixture_root")" 0 '' 0
+assert_equal 2 "$_redraw_count" 'redraws when ahead or behind state changes'
 _shsh_async_callback _shsh_async_git_status 0 \
   "$(_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
 assert_equal 'main*+? ⇣⇡ ≡' "$_shsh_git_plain" 'builds a unified Git segment'
 assert_equal '%F{#cba6f7}main%f%F{#fab387}*+?%f %F{#94e2d5}⇣⇡%f %F{#f5e0dc}≡%f' \
   "$_shsh_git_prompt" 'applies the Structured Mauve Git colors'
-assert_equal 2 "$_redraw_count" 'redraws when the Git status changes'
+assert_equal 3 "$_redraw_count" 'redraws when the Git status changes'
 _shsh_async_callback _shsh_async_git_status 0 \
   "$(_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
-assert_equal 2 "$_redraw_count" 'skips redraw when the Git status is unchanged'
+assert_equal 3 "$_redraw_count" 'skips redraw when the Git status is unchanged'
 functions[_shsh_async_redraw]=$functions[_saved_async_redraw]
 unfunction _saved_async_redraw
 
