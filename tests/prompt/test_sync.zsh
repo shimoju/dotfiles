@@ -106,4 +106,16 @@ unset CONTEXT
 
 assert_equal '' "$PROMPT_EOL_MARK" 'hides the end-of-line marker like Pure'
 
+typeset _saved_title_prefix=$_shsh_title_prefix
+SSH_CONNECTION='192.0.2.1 22 192.0.2.2 22'
+_shsh_detect_identity
+assert_equal "${(%):-%m} " "$_shsh_title_prefix" \
+  'detects the SSH hostname prefix during setup'
+_shsh_title_prefix='remote '
+typeset _title_output=$(TERM=xterm-256color TTY=/dev/ttys001 _shsh_set_title path)
+assert_equal $'\e]0;remote path\a' "$_title_output" \
+  'includes the SSH hostname prefix in the terminal title'
+_shsh_title_prefix=$_saved_title_prefix
+unset SSH_CONNECTION
+
 print -r -- "1..${_test_count}"

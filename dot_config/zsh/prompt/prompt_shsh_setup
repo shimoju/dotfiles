@@ -89,11 +89,17 @@ _shsh_shorten_path() {
 _shsh_detect_identity() {
   typeset -g _shsh_show_identity=0
   typeset -g _shsh_identity_color=$_shsh_colors[identity]
+  typeset -g _shsh_title_prefix=
+  local ssh_connection=${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-}
+
+  if [[ -n $ssh_connection ]]; then
+    _shsh_title_prefix="${(%):-%m} "
+  fi
 
   if (( EUID == 0 )); then
     _shsh_show_identity=1
     _shsh_identity_color=$_shsh_colors[failure]
-  elif [[ -n ${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-} ]]; then
+  elif [[ -n $ssh_connection ]]; then
     _shsh_show_identity=1
   elif [[ -n ${container-}${KUBERNETES_SERVICE_HOST-} ]] ||
       [[ -e /.dockerenv || -e /run/.containerenv ]]; then
@@ -105,7 +111,7 @@ _shsh_set_title() {
   [[ $TERM == dumb || -n ${EMACS-}${INSIDE_EMACS-} ]] && return
   [[ $TTY == /dev/ttyS<-> ]] && return
 
-  local title=$1
+  local title="${_shsh_title_prefix-}$1"
   title=${title//$'\e'/}
   title=${title//$'\a'/}
   title=${title//$'\n'/ }
