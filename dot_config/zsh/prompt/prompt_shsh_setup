@@ -1,7 +1,7 @@
 emulate -L zsh
-# promptinit applies these after setup. Keep promptsubst off because dynamic
-# path and Git values are escaped only for prompt percent expansion.
-prompt_opts=(cr percent sp)
+# promptinit applies these after setup. PROMPT itself contains only a fixed
+# renderer call; path and Git values are emitted as data by that renderer.
+prompt_opts=(cr percent sp subst)
 
 autoload -Uz add-zsh-hook
 zmodload zsh/datetime
@@ -44,17 +44,20 @@ _shsh_human_time() {
 }
 
 _shsh_shorten_path() {
+  setopt localoptions multibyte
+
   local original=$1 path_text=$1
   local -i limit=$2
   local prefix= result component candidate
+  local ellipsis='…' shortened_prefix='…/'
   local -a components
-  local -i index
+  local -i index tail_limit
 
   if (( limit <= 1 )); then
     REPLY='…'
     return
   fi
-  if (( ${#path_text} <= limit )); then
+  if (( ${(m)#path_text} <= limit )); then
     REPLY=$path_text
     return
   fi
@@ -73,18 +76,19 @@ _shsh_shorten_path() {
   for (( index = ${#components}; index >= 1; --index )); do
     component=${components[index]}
     candidate="${component}/${result}"
-    (( ${#candidate} + 2 > limit )) && break
+    (( ${(m)#candidate} + ${(m)#shortened_prefix} > limit )) && break
     result=$candidate
   done
 
   if [[ "${prefix}${result}" != $original ]]; then
-    result="…/${result}"
+    result="${shortened_prefix}${result}"
   else
     result="${prefix}${result}"
   fi
 
-  if (( ${#result} > limit )); then
-    result="…${result[-$(( limit - 1 )),-1]}"
+  if (( ${(m)#result} > limit )); then
+    tail_limit=$(( limit - ${(m)#ellipsis} ))
+    result="${ellipsis}${(ml:$tail_limit:::)result}"
   fi
   REPLY=$result
 }
@@ -449,7 +453,6 @@ _shsh_async_refresh() {
   if [[ ${_shsh_async_pwd-} != $workdir ]]; then
     _shsh_clear_git_state
     typeset -g _shsh_async_pwd=$workdir
-    _shsh_render
   fi
 
   (( ++_shsh_generation ))
@@ -479,7 +482,6 @@ _shsh_async_refresh() {
 }
 
 _shsh_async_redraw() {
-  _shsh_render
   [[ ${CONTEXT-} == cont ]] && return 0
   zle && zle .reset-prompt
   return 0
@@ -654,7 +656,7 @@ _shsh_preexec() {
 }
 
 _shsh_render() {
-  setopt localoptions noshwordsplit
+  setopt localoptions multibyte noshwordsplit
 
   local path_text=${(%):-%~}
   local time_text=$_shsh_time
@@ -703,17 +705,17 @@ _shsh_render() {
   nonpath_width=0
   local part
   for part in $prefix_plain $suffix_plain; do
-    (( nonpath_width += ${#part} ))
+    (( nonpath_width += ${(m)#part} ))
   done
   nonpath_count=$(( ${#prefix_plain} + ${#suffix_plain} ))
 
-  right_width=${#right_plain}
+  right_width=${(m)#right_plain}
   path_limit=$(( columns - 1 - nonpath_width - nonpath_count - right_width - 2 ))
 
   if (( path_limit < 8 )); then
     right_plain=$duration_plain
     right_prompt=$duration_prompt
-    right_width=${#right_plain}
+    right_width=${(m)#right_plain}
     path_limit=$(( columns - 1 - nonpath_width - nonpath_count - right_width - (right_width ? 2 : 0) ))
   fi
   if (( path_limit < 8 )); then
@@ -734,7 +736,7 @@ _shsh_render() {
   all_prompt=($prefix_prompt "$path_prompt" $suffix_prompt)
   left_plain="${(j: :)all_plain}"
   left_prompt="${(j: :)all_prompt}"
-  left_width=${#left_plain}
+  left_width=${(m)#left_plain}
 
   if (( right_width )); then
     padding=$(( columns - left_width - right_width ))
@@ -747,11 +749,16 @@ _shsh_render() {
   typeset -g _shsh_render_left_plain=$left_plain
   typeset -g _shsh_render_right_plain=$right_plain
   typeset -gi _shsh_render_padding=$padding
+  typeset -gi _shsh_render_columns=$columns
 
   local indicator_color=$_shsh_colors[success]
   (( _shsh_last_status )) && indicator_color=$_shsh_colors[failure]
-  PROMPT="${left_prompt}${separator}${right_prompt}"$'\n'"%F{${indicator_color}}❯%f "
-  RPROMPT=
+  typeset -g _shsh_rendered_prompt="${left_prompt}${separator}${right_prompt}"$'\n'"%F{${indicator_color}}❯%f "
+}
+
+_shsh_expand_prompt() {
+  _shsh_render
+  print -nr -- "$_shsh_rendered_prompt"
 }
 
 _shsh_precmd() {
@@ -771,7 +778,6 @@ _shsh_precmd() {
   fi
 
   _shsh_set_title "${(%):-%~}"
-  _shsh_render
   _shsh_async_refresh
 }
 
@@ -803,5 +809,5 @@ add-zsh-hook preexec _shsh_preexec
 PROMPT2="%F{${_shsh_colors[subtle]}}… %(1_.%_ .%_)%f%(?.%F{${_shsh_colors[success]}}.%F{${_shsh_colors[failure]}})❯%f "
 PROMPT4="%F{${_shsh_colors[warning]}}%e%f %F{${_shsh_colors[path]}}%x%f%F{${_shsh_colors[subtle]}}:%I @ %f%F{${_shsh_colors[branch]}}%N%f%F{${_shsh_colors[subtle]}}:%i >%f "
 PROMPT_EOL_MARK=
-
-_shsh_render
+PROMPT='$(_shsh_expand_prompt)'
+RPROMPT=

@@ -33,23 +33,33 @@ ln -s "${_source_zdotdir}/prompt" "${_test_zdotdir}/prompt"
 source "$ASYNC_ZSH_PATH"
 ZDOTDIR=$_test_zdotdir
 setopt promptsubst
+typeset -gi _previous_winch_calls=0
+TRAPWINCH() {
+  (( ++_previous_winch_calls ))
+}
 source "${_source_zdotdir}/dot_zshrc" > "${_test_zdotdir}/startup-output"
 
 assert 'theme setup does not print a blank line' \
   test ! -s "${_test_zdotdir}/startup-output"
-assert 'theme disables prompt substitution' \
-  test "${options[promptsubst]}" = off
+assert 'theme enables prompt substitution for width-aware rendering' \
+  test "${options[promptsubst]}" = on
 assert 'precmd hook is registered' \
   test "${precmd_functions[(Ie)_shsh_precmd]}" -gt 0
 assert 'preexec hook is registered' \
   test "${preexec_functions[(Ie)_shsh_preexec]}" -gt 0
-assert 'prompt has two lines' \
-  test "${#${(f)PROMPT}}" -eq 2
+assert 'prompt contains only the fixed renderer call' \
+  test "$PROMPT" = '$(_shsh_expand_prompt)'
+typeset _expanded_prompt=$(_shsh_expand_prompt)
+assert 'expanded prompt has two lines' \
+  test "${#${(f)_expanded_prompt}}" -eq 2
 assert 'input line contains only the prompt symbol' \
-  test "${${(f)PROMPT}[2]}" = '%F{#a6e3a1}❯%f '
+  test "${${(f)_expanded_prompt}[2]}" = '%F{#a6e3a1}❯%f '
 assert 'right prompt is unused' \
   test -z "$RPROMPT"
 assert 'theme directory is first in fpath' \
   test "$fpath[1]" = "${_test_zdotdir}/prompt"
+TRAPWINCH $signals[WINCH]
+assert 'existing function-based WINCH trap is untouched' \
+  test "$_previous_winch_calls" -eq 1
 
 (( _failures == 0 ))

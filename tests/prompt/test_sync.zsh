@@ -57,29 +57,57 @@ _shsh_shorten_path '~/one/two/three/project' 15
 assert_equal '…/three/project' "$REPLY" 'shortens at component boundaries'
 _shsh_shorten_path '/a/very-long-component' 8
 assert_equal '…mponent' "$REPLY" 'falls back to tail truncation'
+_shsh_shorten_path '~/tmp/ドキュメント/プロジェクト' 30
+assert_true '(( ${(m)#REPLY} <= 30 ))' \
+  'shortens a multibyte path to its display-column limit'
 
 _shsh_last_status=0
 _shsh_time=12:34:56
 COLUMNS=80
 _shsh_render
-assert_contains "$PROMPT" $'\n%F{#a6e3a1}❯%f ' 'renders a two-line success prompt'
-assert_contains "$PROMPT" '%F{#89b4fa}' 'renders the path in Mocha Blue'
-assert_contains "$PROMPT" '%F{#7f849c}' 'renders the clock in Mocha Overlay 1'
+assert_contains "$_shsh_rendered_prompt" $'\n%F{#a6e3a1}❯%f ' 'renders a two-line success prompt'
+assert_contains "$_shsh_rendered_prompt" '%F{#89b4fa}' 'renders the path in Mocha Blue'
+assert_contains "$_shsh_rendered_prompt" '%F{#7f849c}' 'renders the clock in Mocha Overlay 1'
 assert_equal 12:34:56 "$_shsh_render_right_plain" 'keeps the precmd time at the right'
-assert_true '(( ${#_shsh_render_left_plain} + _shsh_render_padding + ${#_shsh_render_right_plain} == COLUMNS ))' 'aligns the right segment to the terminal edge'
+assert_true \
+  '(( ${(m)#_shsh_render_left_plain} + _shsh_render_padding + ${(m)#_shsh_render_right_plain} == COLUMNS ))' \
+  'aligns the right segment to the terminal edge'
+
+_shsh_git_plain='機能/修正*'
+_shsh_git_prompt='%F{#cba6f7}機能/修正%f%F{#fab387}*%f'
+_shsh_render
+assert_true \
+  '(( ${(m)#_shsh_render_left_plain} + _shsh_render_padding + ${(m)#_shsh_render_right_plain} == COLUMNS ))' \
+  'aligns multibyte prompt segments by display width'
+
+_shsh_prompt_injection() {
+  print -nr -- EXECUTED
+}
+_shsh_git_plain='$(_shsh_prompt_injection)'
+_shsh_git_prompt='%F{#cba6f7}$(_shsh_prompt_injection)%f'
+typeset _injection_prompt=$(print -P -r -- "$PROMPT")
+assert_contains "$_injection_prompt" '$(_shsh_prompt_injection)' \
+  'does not recursively evaluate cached prompt data'
+assert_true '[[ $_injection_prompt != *EXECUTED* ]]' \
+  'keeps command-like branch text inert under prompt substitution'
+unfunction _shsh_prompt_injection
+_shsh_git_plain=
+_shsh_git_prompt=
 
 _shsh_last_status=1
 _shsh_render
-assert_contains "$PROMPT" '%F{#f38ba8}❯%f ' 'renders failures in Mocha Red'
+assert_contains "$_shsh_rendered_prompt" '%F{#f38ba8}❯%f ' 'renders failures in Mocha Red'
 
 _shsh_command_duration='1m 2s'
 COLUMNS=80
 _shsh_render
-assert_contains "$PROMPT" '%F{#f9e2af}1m 2s%f' 'renders slow commands in Mocha Yellow'
+assert_contains "$_shsh_rendered_prompt" '%F{#f9e2af}1m 2s%f' 'renders slow commands in Mocha Yellow'
 
 COLUMNS=20
 _shsh_render
-assert_true '(( ${#_shsh_render_left_plain} + ${#_shsh_render_right_plain} <= COLUMNS ))' 'drops low-priority right content in narrow terminals'
+assert_true \
+  '(( ${(m)#_shsh_render_left_plain} + ${(m)#_shsh_render_right_plain} <= COLUMNS ))' \
+  'drops low-priority right content in narrow terminals'
 
 functions[_test_shsh_async_refresh]=$functions[_shsh_async_refresh]
 _shsh_async_refresh() { :; }
@@ -93,7 +121,8 @@ assert_equal marker "$_redraw_output" 'does not print a blank line during asynch
 
 typeset -ga _zle_calls=()
 zle() {
-  _zle_calls+=("$*")
+  (( $# )) && _zle_calls+=("$*")
+  return 0
 }
 CONTEXT=cont
 _shsh_async_redraw
@@ -101,6 +130,22 @@ assert_equal 0 "${#_zle_calls}" 'does not reset the prompt during continuation i
 CONTEXT=start
 _shsh_async_redraw
 assert_equal .reset-prompt "${_zle_calls[-1]}" 'uses the builtin reset-prompt widget'
+
+COLUMNS=100
+_shsh_render
+typeset _wide_prompt=$_shsh_rendered_prompt
+COLUMNS=60
+typeset _expanded_prompt=$(_shsh_expand_prompt)
+_shsh_render
+assert_equal "$_shsh_rendered_prompt" "$_expanded_prompt" \
+  'expands the prompt with the current terminal width'
+assert_true '[[ $_expanded_prompt != $_wide_prompt ]]' \
+  'changes the rendered prompt when the terminal width changes'
+assert_true \
+  '(( ${(m)#_shsh_render_left_plain} + _shsh_render_padding + ${(m)#_shsh_render_right_plain} == COLUMNS ))' \
+  'realigns the right segment to the resized terminal width'
+CONTEXT=start
+COLUMNS=80
 unfunction zle
 unset CONTEXT
 
@@ -132,7 +177,8 @@ builtin cd -q -- "$_nonrepo_root"
 _shsh_async_refresh || true
 assert_equal '' "$_shsh_git_prompt" \
   'clears Git state immediately after leaving a repository'
-assert_true '[[ $PROMPT != *main* ]]' \
+_shsh_render
+assert_true '[[ $_shsh_rendered_prompt != *main* ]]' \
   'removes the stale Git segment even when the worker cannot start'
 builtin cd -q -- "$_original_pwd"
 _shsh_async_pwd=$PWD
@@ -157,8 +203,19 @@ functions[_saved_kube_signature]=$functions[_shsh_kube_signature]
 _shsh_kube_signature() {
   return 1
 }
+_shsh_kube_context=old-context
+_shsh_kube_namespace=old-namespace
+_shsh_update_kube_render
+_shsh_render
+assert_contains "$_shsh_rendered_prompt" 'old-context/old-namespace' \
+  'renders a cached Kubernetes segment before its config disappears'
 _shsh_async_ready=1
 _shsh_async_refresh
+assert_equal '' "$_shsh_kube_prompt" \
+  'clears Kubernetes data when its config disappears'
+_shsh_render
+assert_true '[[ $_shsh_rendered_prompt != *old-context* ]]' \
+  'removes a stale Kubernetes segment in the same prompt'
 assert_equal 1 "$_zpty_checks" 'checks a ready worker only once per refresh'
 assert_equal 1 "$_flushes" 'flushes jobs after reusing a live worker'
 assert_equal _shsh "${_flushed_workers[1]}" \

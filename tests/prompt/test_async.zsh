@@ -34,6 +34,7 @@ assert_not_equal() {
 }
 
 typeset _repo_root=${0:A:h:h:h}
+typeset _repo_branch=$(command git -C "$_repo_root" branch --show-current)
 typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-async.XXXXXXXX")
 _fixture_root=${_fixture_root:A}
 export GIT_CONFIG_GLOBAL=/dev/null
@@ -112,9 +113,9 @@ assert_not_equal main "$_shsh_git_branch" 'changing directory rejects the old re
 repeat 40; do
   sleep 0.05
   async_process_results _shsh _shsh_async_callback 2>/dev/null || true
-  [[ $_shsh_git_branch == custom-zsh-prompt ]] && break
+  [[ $_shsh_git_branch == $_repo_branch ]] && break
 done
-assert_equal custom-zsh-prompt "$_shsh_git_branch" 'worker publishes the new directory after cancellation'
+assert_equal "$_repo_branch" "$_shsh_git_branch" 'worker publishes the new directory after cancellation'
 
 async_stop_worker _shsh
 _shsh_git_branch=
@@ -123,9 +124,9 @@ _shsh_async_refresh || true
 repeat 40; do
   sleep 0.05
   async_process_results _shsh _shsh_async_callback 2>/dev/null || true
-  [[ $_shsh_git_branch == custom-zsh-prompt ]] && break
+  [[ $_shsh_git_branch == $_repo_branch ]] && break
 done
-assert_equal custom-zsh-prompt "$_shsh_git_branch" 'worker restarts after an unexpected stop'
+assert_equal "$_repo_branch" "$_shsh_git_branch" 'worker restarts after an unexpected stop'
 
 async_stop_worker _shsh
 _shsh_async_ready=0

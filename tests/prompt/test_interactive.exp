@@ -10,6 +10,31 @@ cd /private/tmp
 set env(TERM) xterm-256color
 spawn -noecho zsh -dfi
 
+proc expect_aligned_prompt {columns buffer description} {
+  set first_line_pattern {\x1b\[38;2;137;180;250m([^\x1b]*)\x1b\[39m \x1b\[38;2;203;166;247mmain\x1b\[39m( +)\x1b\[38;2;127;132;156m([0-9]{2}:[0-9]{2}:[0-9]{2})\x1b\[39m}
+  expect {
+    -re $first_line_pattern {
+      set path_width [string length $expect_out(1,string)]
+      set padding_width [string length $expect_out(2,string)]
+      set rendered_width [expr {$path_width + 1 + 4 + $padding_width + 8}]
+      if {$rendered_width != $columns} {
+        puts stderr "$description: expected $columns columns, got $rendered_width"
+        exit 5
+      }
+    }
+    timeout { puts stderr "$description"; exit 5 }
+  }
+  expect {
+    -re {\x1b\[38;2;166;227;161m❯\x1b\[39m ([^\r\n]*)} {
+      if {$buffer ne "" && [string first $buffer $expect_out(1,string)] != 0} {
+        puts stderr $description
+        exit 5
+      }
+    }
+    timeout { puts stderr $description; exit 5 }
+  }
+}
+
 send -- "source $async_zsh_path; export ZDOTDIR=$test_zdotdir; source $source_zdotdir/dot_zshrc\r"
 expect {
   -re {❯} {}
@@ -37,10 +62,35 @@ expect {
   timeout { puts stderr "editing buffer was not preserved"; exit 4 }
 }
 
+set slave $spawn_out(slave,name)
+stty rows 24 columns 120 < $slave
+send -- "print -r -- WIDTH_120_READY\r"
+expect -re {WIDTH_120_READY}
+expect_aligned_prompt 120 "" "expansion did not redraw an aligned prompt"
+
+send -- "async_stop_worker _shsh 2>/dev/null; async_stop_worker _shsh_fetch 2>/dev/null; _shsh_async_refresh() { :; }; print -r -- RESIZE_IDLE_READY\r"
+expect -re {RESIZE_IDLE_READY}
+expect_aligned_prompt 120 "" "worker shutdown did not return to an aligned prompt"
+
+send -- "unsetopt monitor; ( for width in 110 100 90 80 70 100; do sleep 0.3; stty rows 24 columns \$width < /dev/tty; done ) &; print -r -- RESIZE_HELPER_READY\r"
+expect -re {RESIZE_HELPER_READY}
+expect_aligned_prompt 120 "" "resize helper did not return to an aligned prompt"
+set resize_buffer "print -r -- BUFFER_AFTER_RESIZE"
+send -- $resize_buffer
+expect -exact $resize_buffer
+foreach columns {110 100 90 80 70 100} {
+  expect_aligned_prompt $columns $resize_buffer "resize emitted a stale or misaligned prompt"
+}
+send -- "\r"
+expect {
+  -re {BUFFER_AFTER_RESIZE} {}
+  timeout { puts stderr "resized editing buffer was not executed"; exit 6 }
+}
+
 send -- "false\r"
 expect {
   -re {\x1b\[38;2;243;139;168m❯} {}
-  timeout { puts stderr "failure prompt was not red"; exit 5 }
+  timeout { puts stderr "failure prompt was not red"; exit 7 }
 }
 
 send -- "exit\r"
