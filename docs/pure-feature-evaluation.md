@@ -45,7 +45,7 @@ Pureの2行目には、virtualenv、Conda、Nix shell名が`❯`の前へ入る�
 
 ### Structured Mauve配色
 
-Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずShshの標準仕様として固定する。
+Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずShshの標準仕様として固定する。実装ではsemantic roleをキーにした内部連想配列`_shsh_colors`へ集約する。
 
 | 役割群 | 要素 | 色 |
 |---|---|---|

@@ -5,6 +5,21 @@ autoload -Uz add-zsh-hook
 zmodload zsh/datetime
 zmodload zsh/stat
 
+typeset -gA _shsh_colors=(
+  success '#a6e3a1'
+  failure '#f38ba8'
+  warning '#f9e2af'
+  path '#89b4fa'
+  branch '#cba6f7'
+  dirty '#fab387'
+  git_action '#f5c2e7'
+  git_sync '#94e2d5'
+  stash '#f5e0dc'
+  kubernetes '#74c7ec'
+  identity '#b4befe'
+  subtle '#7f849c'
+)
+
 prompt_shsh_escape() {
   REPLY=${1//\%/%%}
 }
@@ -73,11 +88,11 @@ prompt_shsh_shorten_path() {
 
 prompt_shsh_detect_identity() {
   typeset -g prompt_shsh_show_identity=0
-  typeset -g prompt_shsh_identity_color='#b4befe'
+  typeset -g prompt_shsh_identity_color=$_shsh_colors[identity]
 
   if (( EUID == 0 )); then
     prompt_shsh_show_identity=1
-    prompt_shsh_identity_color='#f38ba8'
+    prompt_shsh_identity_color=$_shsh_colors[failure]
   elif [[ -n ${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-} ]]; then
     prompt_shsh_show_identity=1
   elif [[ -n ${container-}${KUBERNETES_SERVICE_HOST-} ]] ||
@@ -299,7 +314,7 @@ prompt_shsh_update_kube_render() {
   if [[ -n $prompt_shsh_kube_context ]]; then
     plain="⎈ ${prompt_shsh_kube_context}/${prompt_shsh_kube_namespace}"
     prompt_shsh_escape "$plain"
-    prompt="%F{#74c7ec}${REPLY}%f"
+    prompt="%F{${_shsh_colors[kubernetes]}}${REPLY}%f"
   fi
   typeset -g prompt_shsh_kube_plain=$plain
   typeset -g prompt_shsh_kube_prompt=$prompt
@@ -311,25 +326,25 @@ prompt_shsh_update_git_render() {
   if [[ -n $prompt_shsh_git_branch ]]; then
     plain=$prompt_shsh_git_branch
     prompt_shsh_escape "$prompt_shsh_git_branch"
-    prompt="%F{#cba6f7}${REPLY}%f"
+    prompt="%F{${_shsh_colors[branch]}}${REPLY}%f"
 
     if [[ -n $prompt_shsh_git_dirty ]]; then
       plain+=$prompt_shsh_git_dirty
       prompt_shsh_escape "$prompt_shsh_git_dirty"
-      prompt+="%F{#fab387}${REPLY}%f"
+      prompt+="%F{${_shsh_colors[dirty]}}${REPLY}%f"
     fi
     if [[ -n $prompt_shsh_git_action ]]; then
       plain+=" ${prompt_shsh_git_action}"
       prompt_shsh_escape "$prompt_shsh_git_action"
-      prompt+=" %F{#f5c2e7}${REPLY}%f"
+      prompt+=" %F{${_shsh_colors[git_action]}}${REPLY}%f"
     fi
     if [[ -n $prompt_shsh_git_arrows ]]; then
       plain+=" ${prompt_shsh_git_arrows}"
-      prompt+=" %F{#94e2d5}${prompt_shsh_git_arrows}%f"
+      prompt+=" %F{${_shsh_colors[git_sync]}}${prompt_shsh_git_arrows}%f"
     fi
     if [[ -n $prompt_shsh_git_stash ]]; then
       plain+=" ${prompt_shsh_git_stash}"
-      prompt+=" %F{#f5e0dc}${prompt_shsh_git_stash}%f"
+      prompt+=" %F{${_shsh_colors[stash]}}${prompt_shsh_git_stash}%f"
     fi
   fi
 
@@ -510,7 +525,7 @@ prompt_shsh_render() {
 
   if ((${(M)#jobstates:#suspended:*})); then
     suspended_plain='✦'
-    suspended_prompt='%F{#f9e2af}✦%f'
+    suspended_prompt="%F{${_shsh_colors[warning]}}✦%f"
     prefix_plain+=($suspended_plain)
     prefix_prompt+=($suspended_prompt)
   fi
@@ -535,11 +550,11 @@ prompt_shsh_render() {
   if [[ -n ${prompt_shsh_command_duration-} ]]; then
     duration_plain=$prompt_shsh_command_duration
     prompt_shsh_escape "$duration_plain"
-    duration_prompt="%F{#f9e2af}${REPLY}%f"
+    duration_prompt="%F{${_shsh_colors[warning]}}${REPLY}%f"
   fi
 
   right_plain="${duration_plain:+${duration_plain} }${time_text}"
-  right_prompt="${duration_prompt:+${duration_prompt} }%F{#7f849c}${time_text}%f"
+  right_prompt="${duration_prompt:+${duration_prompt} }%F{${_shsh_colors[subtle]}}${time_text}%f"
 
   nonpath_width=0
   local part
@@ -568,7 +583,7 @@ prompt_shsh_render() {
   prompt_shsh_shorten_path "$path_text" $path_limit
   path_text=$REPLY
   prompt_shsh_escape "$path_text"
-  path_prompt="%F{#89b4fa}${REPLY}%f"
+  path_prompt="%F{${_shsh_colors[path]}}${REPLY}%f"
 
   local -a all_plain all_prompt
   all_plain=($prefix_plain "$path_text" $suffix_plain)
@@ -589,8 +604,8 @@ prompt_shsh_render() {
   typeset -g prompt_shsh_render_right_plain=$right_plain
   typeset -gi prompt_shsh_render_padding=$padding
 
-  local indicator_color='#a6e3a1'
-  (( prompt_shsh_last_status )) && indicator_color='#f38ba8'
+  local indicator_color=$_shsh_colors[success]
+  (( prompt_shsh_last_status )) && indicator_color=$_shsh_colors[failure]
   PROMPT="${left_prompt}${separator}${right_prompt}"$'\n'"%F{${indicator_color}}❯%f "
   RPROMPT=
 }
@@ -635,7 +650,7 @@ add-zsh-hook -d preexec prompt_shsh_preexec 2>/dev/null
 add-zsh-hook precmd prompt_shsh_precmd
 add-zsh-hook preexec prompt_shsh_preexec
 
-PROMPT2='%F{#7f849c}… %(1_.%_ .%_)%f%(?.%F{#a6e3a1}.%F{#f38ba8})❯%f '
-PROMPT4='%F{#f9e2af}%e%f %F{#89b4fa}%x%f%F{#7f849c}:%I @ %f%F{#cba6f7}%N%f%F{#7f849c}:%i >%f '
+PROMPT2="%F{${_shsh_colors[subtle]}}… %(1_.%_ .%_)%f%(?.%F{${_shsh_colors[success]}}.%F{${_shsh_colors[failure]}})❯%f "
+PROMPT4="%F{${_shsh_colors[warning]}}%e%f %F{${_shsh_colors[path]}}%x%f%F{${_shsh_colors[subtle]}}:%I @ %f%F{${_shsh_colors[branch]}}%N%f%F{${_shsh_colors[subtle]}}:%i >%f "
 
 prompt_shsh_precmd
