@@ -36,7 +36,7 @@ expect {
 
 send -- "false\r"
 expect {
-  -re {\x1b\[31m❯} {}
+  -re {\x1b\[38;2;243;139;168m❯} {}
   timeout { puts stderr "failure prompt was not red"; exit 5 }
 }
 

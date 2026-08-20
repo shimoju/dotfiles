@@ -43,6 +43,20 @@ user@host ~/src main*+? rebase ⇣⇡ ≡  ⎈ context/namespace      5s 16:23:4
 
 Pureの2行目には、virtualenv、Conda、Nix shell名が`❯`の前へ入る場合がある。現在の設定ではすべて非表示にしており、自作版でも2行目へ別要素を置かない。
 
+### Structured Mauve配色
+
+Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずShshの標準仕様として固定する。
+
+| 役割群 | 要素 | 色 |
+|---|---|---|
+| 実行状態 | 成功、失敗／root、遅延／サスペンド | Green `#a6e3a1`、Red `#f38ba8`、Yellow `#f9e2af` |
+| 場所・環境 | path、Kubernetes、SSH／host | Blue `#89b4fa`、Sapphire `#74c7ec`、Lavender `#b4befe` |
+| Git識別子 | branch、Git action、stash | Mauve `#cba6f7`、Pink `#f5c2e7`、Rosewater `#f5e0dc` |
+| Gitの変化 | dirty、ahead／behind | Peach `#fab387`、Teal `#94e2d5` |
+| 補助情報 | 現在時刻、継続・デバッグプロンプトの区切り | Overlay 1 `#7f849c` |
+
+成功をGreen、警告をYellow、失敗をRedへ限定し、branchをMauveへ分離する。dirtyもYellowではなくPeachにすることで、遅いコマンドとの役割衝突を避ける。
+
 ## Git表示
 
 | 採用 | Pureの機能 | Pureでの状態 | 自作版での方針 |

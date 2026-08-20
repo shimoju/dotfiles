@@ -73,11 +73,11 @@ prompt_shsh_shorten_path() {
 
 prompt_shsh_detect_identity() {
   typeset -g prompt_shsh_show_identity=0
-  typeset -g prompt_shsh_identity_color=yellow
+  typeset -g prompt_shsh_identity_color='#b4befe'
 
   if (( EUID == 0 )); then
     prompt_shsh_show_identity=1
-    prompt_shsh_identity_color=red
+    prompt_shsh_identity_color='#f38ba8'
   elif [[ -n ${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-} ]]; then
     prompt_shsh_show_identity=1
   elif [[ -n ${container-}${KUBERNETES_SERVICE_HOST-} ]] ||
@@ -299,7 +299,7 @@ prompt_shsh_update_kube_render() {
   if [[ -n $prompt_shsh_kube_context ]]; then
     plain="⎈ ${prompt_shsh_kube_context}/${prompt_shsh_kube_namespace}"
     prompt_shsh_escape "$plain"
-    prompt="%F{cyan}${REPLY}%f"
+    prompt="%F{#74c7ec}${REPLY}%f"
   fi
   typeset -g prompt_shsh_kube_plain=$plain
   typeset -g prompt_shsh_kube_prompt=$prompt
@@ -311,25 +311,25 @@ prompt_shsh_update_git_render() {
   if [[ -n $prompt_shsh_git_branch ]]; then
     plain=$prompt_shsh_git_branch
     prompt_shsh_escape "$prompt_shsh_git_branch"
-    prompt="%F{green}${REPLY}%f"
+    prompt="%F{#cba6f7}${REPLY}%f"
 
     if [[ -n $prompt_shsh_git_dirty ]]; then
       plain+=$prompt_shsh_git_dirty
       prompt_shsh_escape "$prompt_shsh_git_dirty"
-      prompt+="%F{yellow}${REPLY}%f"
+      prompt+="%F{#fab387}${REPLY}%f"
     fi
     if [[ -n $prompt_shsh_git_action ]]; then
       plain+=" ${prompt_shsh_git_action}"
       prompt_shsh_escape "$prompt_shsh_git_action"
-      prompt+=" %F{magenta}${REPLY}%f"
+      prompt+=" %F{#f5c2e7}${REPLY}%f"
     fi
     if [[ -n $prompt_shsh_git_arrows ]]; then
       plain+=" ${prompt_shsh_git_arrows}"
-      prompt+=" %F{cyan}${prompt_shsh_git_arrows}%f"
+      prompt+=" %F{#94e2d5}${prompt_shsh_git_arrows}%f"
     fi
     if [[ -n $prompt_shsh_git_stash ]]; then
       plain+=" ${prompt_shsh_git_stash}"
-      prompt+=" %F{yellow}${prompt_shsh_git_stash}%f"
+      prompt+=" %F{#f5e0dc}${prompt_shsh_git_stash}%f"
     fi
   fi
 
@@ -510,7 +510,7 @@ prompt_shsh_render() {
 
   if ((${(M)#jobstates:#suspended:*})); then
     suspended_plain='✦'
-    suspended_prompt='%F{red}✦%f'
+    suspended_prompt='%F{#f9e2af}✦%f'
     prefix_plain+=($suspended_plain)
     prefix_prompt+=($suspended_prompt)
   fi
@@ -535,11 +535,11 @@ prompt_shsh_render() {
   if [[ -n ${prompt_shsh_command_duration-} ]]; then
     duration_plain=$prompt_shsh_command_duration
     prompt_shsh_escape "$duration_plain"
-    duration_prompt="%F{yellow}${REPLY}%f"
+    duration_prompt="%F{#f9e2af}${REPLY}%f"
   fi
 
   right_plain="${duration_plain:+${duration_plain} }${time_text}"
-  right_prompt="${duration_prompt:+${duration_prompt} }%F{cyan}${time_text}%f"
+  right_prompt="${duration_prompt:+${duration_prompt} }%F{#7f849c}${time_text}%f"
 
   nonpath_width=0
   local part
@@ -568,7 +568,7 @@ prompt_shsh_render() {
   prompt_shsh_shorten_path "$path_text" $path_limit
   path_text=$REPLY
   prompt_shsh_escape "$path_text"
-  path_prompt="%F{blue}${REPLY}%f"
+  path_prompt="%F{#89b4fa}${REPLY}%f"
 
   local -a all_plain all_prompt
   all_plain=($prefix_plain "$path_text" $suffix_plain)
@@ -589,8 +589,8 @@ prompt_shsh_render() {
   typeset -g prompt_shsh_render_right_plain=$right_plain
   typeset -gi prompt_shsh_render_padding=$padding
 
-  local indicator_color=green
-  (( prompt_shsh_last_status )) && indicator_color=red
+  local indicator_color='#a6e3a1'
+  (( prompt_shsh_last_status )) && indicator_color='#f38ba8'
   PROMPT="${left_prompt}${separator}${right_prompt}"$'\n'"%F{${indicator_color}}❯%f "
   RPROMPT=
 }
@@ -635,7 +635,7 @@ add-zsh-hook -d preexec prompt_shsh_preexec 2>/dev/null
 add-zsh-hook precmd prompt_shsh_precmd
 add-zsh-hook preexec prompt_shsh_preexec
 
-PROMPT2='%F{242}… %(1_.%_ .%_)%f%(?.%F{green}.%F{red})❯%f '
-PROMPT4='%F{yellow}%e%f %F{blue}%x%f%F{242}:%I @ %f%F{blue}%N%f%F{242}:%i >%f '
+PROMPT2='%F{#7f849c}… %(1_.%_ .%_)%f%(?.%F{#a6e3a1}.%F{#f38ba8})❯%f '
+PROMPT4='%F{#f9e2af}%e%f %F{#89b4fa}%x%f%F{#7f849c}:%I @ %f%F{#cba6f7}%N%f%F{#7f849c}:%i >%f '
 
 prompt_shsh_precmd

@@ -93,5 +93,7 @@ prompt_shsh_kube_context=${result[4]}
 prompt_shsh_kube_namespace=${result[5]}
 prompt_shsh_update_kube_render
 assert_equal '⎈ context-a/namespace-a' "$prompt_shsh_kube_plain" 'builds the Kubernetes segment'
+assert_equal '%F{#74c7ec}⎈ context-a/namespace-a%f' "$prompt_shsh_kube_prompt" \
+  'renders Kubernetes in Mocha Sapphire'
 
 print -r -- "1..${_test_count}"

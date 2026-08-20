@@ -31,7 +31,7 @@ assert 'preexec hook is registered' \
 assert 'prompt has two lines' \
   test "${#${(f)PROMPT}}" -eq 2
 assert 'input line contains only the prompt symbol' \
-  test "${${(f)PROMPT}[2]}" = '%F{green}❯%f '
+  test "${${(f)PROMPT}[2]}" = '%F{#a6e3a1}❯%f '
 assert 'right prompt is unused' \
   test -z "$RPROMPT"
 assert 'theme directory is first in fpath' \

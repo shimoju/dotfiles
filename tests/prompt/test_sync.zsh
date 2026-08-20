@@ -61,15 +61,21 @@ assert_equal '…mponent' "$REPLY" 'falls back to tail truncation'
 prompt_shsh_last_status=0
 COLUMNS=80
 prompt_shsh_render
-assert_contains "$PROMPT" $'\n%F{green}❯%f ' 'renders a two-line success prompt'
+assert_contains "$PROMPT" $'\n%F{#a6e3a1}❯%f ' 'renders a two-line success prompt'
+assert_contains "$PROMPT" '%F{#89b4fa}' 'renders the path in Mocha Blue'
+assert_contains "$PROMPT" '%F{#7f849c}' 'renders the clock in Mocha Overlay 1'
 assert_equal 8 "${#prompt_shsh_render_right_plain}" 'renders current time at the right'
 assert_true '(( ${#prompt_shsh_render_left_plain} + prompt_shsh_render_padding + ${#prompt_shsh_render_right_plain} == COLUMNS ))' 'aligns the right segment to the terminal edge'
 
 prompt_shsh_last_status=1
 prompt_shsh_render
-assert_contains "$PROMPT" '%F{red}❯%f ' 'renders failures in red'
+assert_contains "$PROMPT" '%F{#f38ba8}❯%f ' 'renders failures in Mocha Red'
 
 prompt_shsh_command_duration='1m 2s'
+COLUMNS=80
+prompt_shsh_render
+assert_contains "$PROMPT" '%F{#f9e2af}1m 2s%f' 'renders slow commands in Mocha Yellow'
+
 COLUMNS=20
 prompt_shsh_render
 assert_true '(( ${#prompt_shsh_render_left_plain} + ${#prompt_shsh_render_right_plain} <= COLUMNS ))' 'drops low-priority right content in narrow terminals'

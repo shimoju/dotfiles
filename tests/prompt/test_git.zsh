@@ -76,6 +76,8 @@ assert_equal main "$prompt_shsh_git_branch" 'accepts the current branch generati
 prompt_shsh_async_callback prompt_shsh_async_git_status 0 \
   "$(prompt_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
 assert_equal 'main*+? ⇣⇡ ≡' "$prompt_shsh_git_plain" 'builds a unified Git segment'
+assert_equal '%F{#cba6f7}main%f%F{#fab387}*+?%f %F{#94e2d5}⇣⇡%f %F{#f5e0dc}≡%f' \
+  "$prompt_shsh_git_prompt" 'applies the Structured Mauve Git colors'
 
 mkdir -p "$_fixture_root/.git/rebase-merge"
 : > "$_fixture_root/.git/rebase-merge/interactive"
