@@ -227,18 +227,24 @@ _shsh_async_git_aliases() {
 }
 
 _shsh_async_git_fetch() {
-  local generation=$1 workdir=$2 arrows= success=0
+  local generation=$1 workdir=$2 top arrows= success=0
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
-  if command git rev-parse --is-inside-work-tree &>/dev/null; then
+  top=$(command git rev-parse --show-toplevel 2>/dev/null) || top=
+  if [[ -n $top && $top != $HOME ]]; then
     export GIT_TERMINAL_PROMPT=0
     export GIT_ASKPASS=true
     export GCM_INTERACTIVE=never
     export SSH_ASKPASS_REQUIRE=never
     export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes"
-    unset GPG_TTY
+    export GPG_TTY=
 
-    if command git -c gc.auto=0 -c maintenance.auto=0 fetch --quiet </dev/null 2>/dev/null; then
+    if command git \
+        -c gc.auto=0 \
+        -c maintenance.auto=0 \
+        -c fetch.prune=false \
+        fetch --quiet --no-tags --no-prune-tags --recurse-submodules=no \
+        </dev/null 2>/dev/null; then
       success=1
       _shsh_git_arrows
       arrows=$REPLY
