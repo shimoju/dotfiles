@@ -216,6 +216,30 @@ Typewrittenの通常レイアウトとPureレイアウトの差は測定揺ら�
 
 機能と実装方式を含む評価は[Pure・Geometry・Typewrittenの比較](prompt-comparison.md)を参照。
 
+## Shsh改善後の回帰測定
+
+2026-08-20に、改善前の`cd3a5d3`と改善後の`fe61914`を同じLLVM cloneで比較した。Clean／Dirtyを各15回ずつ2組、合計30回測定し、自動fetchはネットワーク揺らぎを除くため成功するno-opへ差し替えた。単位はms。
+
+### Clean
+
+| 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | ahead／behind表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
+|---|---:|---:|---:|---:|---:|
+| 改善前 | 0.997 / 4.451 | 12.500 / 23.947 | — | 491.723 / 497.247 | 488.428 / 493.861 |
+| 改善後 | 0.972 / 3.751 | 12.529 / 23.880 | 77.791 / 111.062 | 494.334 / 527.419 | 491.252 / 524.454 |
+
+### Dirty
+
+| 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | ahead／behind表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
+|---|---:|---:|---:|---:|---:|
+| 改善前 | 0.990 / 4.315 | 12.775 / 23.810 | — | 493.075 / 510.142 | 489.595 / 501.715 |
+| 改善後 | 0.973 / 3.864 | 12.298 / 18.095 | 72.754 / 117.061 | 492.645 / 510.956 | 489.661 / 507.663 |
+
+入力可能になる時間とbranch表示には回帰がない。改善後はahead／behindを約73–78 msで表示でき、従来は詳細statusの完了する約492–493 msまで待っていた情報を約415 ms早く確認できる。
+
+CleanのGit状態完了は中央値で2.611 ms、worker内計算は2.824 ms遅くなった。詳細statusと軽量な`rev-list`が短時間だけ並行するためで、約0.5–0.6%のバックグラウンド処理時間と引き換えにahead／behindを先行表示する設計上のトレードオフである。DirtyのGit状態完了は0.430 ms短縮、worker内計算は0.066 ms増で、測定揺らぎの範囲に収まった。Cleanのp95増加は各15回組に1回ずつあったスケジューリング外れ値によるもので、反復した中央値は安定していた。
+
+fetch完了後の同期状態更新だけを切り出した30回測定では、再度`git status`する従来方式が中央値154.726 ms、`git rev-list --left-right --count`を使う改善後が4.068 msだった。約38倍軽く、fetch後の不要な作業ツリー走査を除去できた。
+
 ## Git標準の高速化機能
 
 未追跡ファイルを除外するとGit状態は速くなるが、プロンプトから`?`が欠落する。完全な状態を維持したまま高速化できるか、同じLLVM cloneでGit組み込み[FSMonitor](https://git-scm.com/docs/git-fsmonitor--daemon)と[untracked cache](https://git-scm.com/docs/git-status.html#_untracked_files_and_performance)を比較した。

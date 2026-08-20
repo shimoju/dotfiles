@@ -66,9 +66,9 @@ Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずS
 | [x] | dirty表示 | 標準は`*` | 採用 |
 | [x] | 詳細dirty | 未ステージ`*`、ステージ済み`+`、未追跡`?` | 現在も有効。1回のstatus結果から分類する |
 | [x] | Git操作中の状態 | rebase、merge、cherry-pickなど | 条件付き表示なので採用 |
-| [x] | ahead／behind | `⇡`／`⇣` | 非同期で採用 |
+| [x] | ahead／behind | `⇡`／`⇣` | branch確定後に軽量な`rev-list` jobで先行表示し、fetch後も同じ計算を再利用する |
 | [x] | stash | stashがあれば`≡` | 現在も有効。非同期で採用 |
-| [x] | 自動fetch | 既定で有効 | 常時有効。入力を待たせず、失敗を静かに扱う |
+| [x] | 自動fetch | 既定で有効 | 常時有効。入力を待たせず、tag、prune、submoduleを対象外にして失敗を静かに扱う |
 | [ ] | upstreamだけfetch | opt-in | 専用設定を持たず、Git標準のfetch動作へ固定する |
 | [ ] | Git表示全体の無効化 | `zstyle`で設定可能 | 専用設定を持たない。障害時は自動的にGit表示なしへ縮退する |
 | [ ] | 未追跡ファイルの除外 | 設定可能 | 専用設定を持たず、常に未追跡ファイルを表示する |
@@ -190,7 +190,7 @@ Pureはdirty checkに5秒を超えたリポジトリを遅いと判定し、そ�
 
 1. 同期部分だけで入力プロンプトを即座に返す。
 2. ブランチを早い段階で追加する。
-3. dirty、ahead／behind、stash、fetchを入力から切り離す。
+3. ahead／behindを軽量jobで先に返し、dirty、stash、fetchを入力から切り離す。
 4. 非同期結果にgenerationとPWDを持たせ、古い結果を捨てる。
 5. workerが失敗しても、Git情報がないだけの通常プロンプトへ縮退する。
 6. 表示結果を独自にcacheせず、Git標準のFSMonitorとuntracked cacheを透過的に利用する。

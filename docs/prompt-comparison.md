@@ -169,7 +169,7 @@ ShshはPure相当の入力開始時間とGit状態完了時間を維持しなが
 Pureを土台に、他2つの良い部分を限定的に取り入れた。
 
 1. Pureからworker lifecycle、世代管理、cancel、縮退動作、自動fetchを採る。
-2. Typewrittenのようにbranchを独立した軽いjobで先行表示し、詳細dirtyは後から反映する。
+2. Typewrittenのようにbranchを独立した軽いjobで先行表示し、branch確定後にahead／behindの軽量job、最後に詳細dirtyを反映する。
 3. 1行目の要素を状態ごとに組み立て、端末幅が足りない場合は右側の低優先度要素から省略する。
 4. KubernetesはGeometryの表示責務を参考にし、ローカルkubeconfigの変更時だけ非同期取得する。
 5. Geometryのclean時の二重走査と、Typewrittenの同期Git判定・多数の補助processは避ける。
