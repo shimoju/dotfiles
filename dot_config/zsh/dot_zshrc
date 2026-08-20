@@ -97,12 +97,10 @@ zstyle ':plugin:ez-compinit' use-cache yes
 
 # Plugins
 zstyle ':antidote:bundle:*' min-age 3
-antidote_home="${ZDOTDIR:-$HOME}/.antidote"
-if [[ -r "$antidote_home/antidote.zsh" ]]; then
-  source "$antidote_home/antidote.zsh"
+if [[ -r "${ZDOTDIR:-$HOME}/.antidote/antidote.zsh" ]]; then
+  source "${ZDOTDIR:-$HOME}/.antidote/antidote.zsh"
   antidote load "${ZDOTDIR:-$HOME}/.zsh_plugins.txt"
 fi
-unset antidote_home
 
 # History key bindings
 bindkey -M emacs ' ' magic-space
