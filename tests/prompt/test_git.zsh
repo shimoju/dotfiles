@@ -83,6 +83,8 @@ _shsh_async_redraw() {
 _shsh_async_callback _shsh_async_git_branch 0 \
   "$(_shsh_async_git_branch 7 "$_fixture_root")" 0 '' 0
 assert_equal main "$_shsh_git_branch" 'accepts the current branch generation'
+assert_equal _shsh_async_git_arrows "${_queued_jobs[1]}" \
+  'queues ahead and behind after the branch is known'
 assert_equal _shsh_async_git_aliases "${_queued_jobs[-1]}" \
   'queues alias discovery after entering a repository'
 assert_equal 1 "$_redraw_count" 'redraws when the branch changes'

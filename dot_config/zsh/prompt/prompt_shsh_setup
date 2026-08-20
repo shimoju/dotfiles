@@ -413,8 +413,6 @@ _shsh_async_refresh() {
   fi
   async_job _shsh _shsh_async_git_branch \
     $_shsh_generation "$workdir" || return
-  async_job _shsh _shsh_async_git_arrows \
-    $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_status \
     $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_fetch \
@@ -483,6 +481,8 @@ _shsh_async_callback() {
         typeset -g _shsh_fetch_alias_top=
         typeset -ga _shsh_fetch_aliases=()
       else
+        async_job _shsh _shsh_async_git_arrows \
+          "${result[1]}" "${result[2]}" || true
         _shsh_update_fetch_aliases \
           "${result[1]}" "${result[2]}" "$_shsh_git_top"
       fi
