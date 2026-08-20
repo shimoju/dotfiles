@@ -79,6 +79,12 @@ assert_equal 'main*+? ⇣⇡ ≡' "$_shsh_git_plain" 'builds a unified Git segme
 assert_equal '%F{#cba6f7}main%f%F{#fab387}*+?%f %F{#94e2d5}⇣⇡%f %F{#f5e0dc}≡%f' \
   "$_shsh_git_prompt" 'applies the Structured Mauve Git colors'
 
+typeset _detached_head=$(command git -C "$_fixture_root" rev-parse --short HEAD)
+command git -C "$_fixture_root" switch -q --detach HEAD
+result=("${(Q@)${(z)$(_shsh_async_git_branch 7 "$_fixture_root")}}")
+assert_equal "$_detached_head" "${result[4]}" 'reports the short hash for detached HEAD'
+command git -C "$_fixture_root" switch -q main
+
 mkdir -p "$_fixture_root/.git/rebase-merge"
 : > "$_fixture_root/.git/rebase-merge/interactive"
 result=("${(Q@)${(z)$(_shsh_async_git_branch 7 "$_fixture_root")}}")

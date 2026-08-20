@@ -114,15 +114,8 @@ _shsh_set_title() {
 }
 
 _shsh_git_action() {
-  local -a git_paths
+  local -a git_paths=("$@")
 
-  git_paths=("${(@f)$(command git rev-parse \
-    --git-path rebase-merge \
-    --git-path rebase-apply \
-    --git-path MERGE_HEAD \
-    --git-path CHERRY_PICK_HEAD \
-    --git-path REVERT_HEAD \
-    --git-path BISECT_LOG 2>/dev/null)}")
   if [[ -d ${git_paths[1]-} ]]; then
     [[ -f ${git_paths[1]}/interactive ]] && REPLY='rebase-i' || REPLY='rebase-m'
     return
@@ -146,12 +139,19 @@ _shsh_async_git_branch() {
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
   repository=("${(@f)$(command git rev-parse \
-    --show-toplevel --abbrev-ref HEAD 2>/dev/null)}")
+    --show-toplevel \
+    --abbrev-ref HEAD \
+    --git-path rebase-merge \
+    --git-path rebase-apply \
+    --git-path MERGE_HEAD \
+    --git-path CHERRY_PICK_HEAD \
+    --git-path REVERT_HEAD \
+    --git-path BISECT_LOG 2>/dev/null)}")
   top=${repository[1]-}
   if [[ -n $top ]]; then
     branch=${repository[2]-}
     [[ $branch == HEAD ]] && branch=$(command git rev-parse --short HEAD 2>/dev/null)
-    _shsh_git_action
+    _shsh_git_action "${repository[@]:2}"
     action=$REPLY
   fi
 
