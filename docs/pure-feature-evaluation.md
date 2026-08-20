@@ -52,10 +52,10 @@ Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずS
 | 実行状態 | 成功、失敗／root、遅延／サスペンド | Green `#a6e3a1`、Red `#f38ba8`、Yellow `#f9e2af` |
 | 場所・環境 | path、Kubernetes、SSH／host | Blue `#89b4fa`、Sapphire `#74c7ec`、Lavender `#b4befe` |
 | Git識別子 | branch、Git action、stash | Mauve `#cba6f7`、Pink `#f5c2e7`、Rosewater `#f5e0dc` |
-| Gitの変化 | dirty、ahead／behind | Peach `#fab387`、Teal `#94e2d5` |
+| Gitの変化 | dirty、conflict、ahead／behind | Peach `#fab387`、Red `#f38ba8`、Teal `#94e2d5` |
 | 補助情報 | 現在時刻、継続・デバッグプロンプトの区切り | Overlay 1 `#7f849c` |
 
-成功をGreen、警告をYellow、失敗をRedへ限定し、branchをMauveへ分離する。dirtyもYellowではなくPeachにすることで、遅いコマンドとの役割衝突を避ける。
+成功をGreen、警告をYellow、失敗・root・未解決conflictのように注意度の高い状態をRedにまとめ、branchをMauveへ分離する。dirtyもYellowではなくPeachにすることで、遅いコマンドとの役割衝突を避ける。conflictのRedはfailureと同色だが、「通常の作業フローを止める状態」という共通の重要度を意図的に表す。
 
 ## Git表示
 
@@ -65,6 +65,7 @@ Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずS
 | [x] | detached HEAD | 対応 | 短いcommit hashを表示する |
 | [x] | dirty表示 | 標準は`*` | 採用 |
 | [x] | 詳細dirty | 未ステージ`*`、ステージ済み`+`、未追跡`?` | 現在も有効。1回のstatus結果から分類する |
+| [x] | conflict表示 | 専用マーカーなし | `#`をRedで表示し、通常のdirtyと区別する。追加コマンドは使わず同じstatus結果のuレコードから判定する |
 | [x] | Git操作中の状態 | rebase、merge、cherry-pickなど | 条件付き表示なので採用 |
 | [x] | ahead／behind | `⇡`／`⇣` | branch確定後に軽量な`rev-list` jobで先行表示し、fetch後も同じ計算を再利用する |
 | [x] | stash | stashがあれば`≡` | 現在も有効。非同期で採用 |

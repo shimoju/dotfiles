@@ -59,7 +59,8 @@ assert_equal main "${result[4]}" 'reports the current branch'
 
 result=("${(Q@)${(z)$(_shsh_async_git_status 7 "$_fixture_root")}}")
 assert_equal '*+?' "${result[3]}" 'reports unstaged, staged, and untracked changes'
-assert_equal '≡' "${result[4]}" 'reports a stash'
+assert_equal '' "${result[4]}" 'reports no conflict in an ordinary dirty tree'
+assert_equal '≡' "${result[5]}" 'reports a stash'
 result=("${(Q@)${(z)$(_shsh_async_git_arrows 7 "$_fixture_root")}}")
 assert_equal '⇣⇡' "${result[3]}" 'reports diverged upstream state independently'
 
@@ -122,6 +123,34 @@ result=("${(Q@)${(z)$(_shsh_async_git_branch 7 "$_fixture_root/unborn")}}")
 assert_equal "$_fixture_root/unborn" "${result[3]}" \
   'reports the top-level of an unborn repository'
 assert_equal fresh "${result[4]}" 'reports an unborn branch'
+
+mkdir -p "$_fixture_root/conflict"
+command git -C "$_fixture_root/conflict" init -q -b main
+command git -C "$_fixture_root/conflict" config user.name test
+command git -C "$_fixture_root/conflict" config user.email test@example.com
+print -r -- base > "$_fixture_root/conflict/tracked"
+command git -C "$_fixture_root/conflict" add tracked
+command git -C "$_fixture_root/conflict" commit -qm initial
+command git -C "$_fixture_root/conflict" switch -qc other
+print -r -- other > "$_fixture_root/conflict/tracked"
+command git -C "$_fixture_root/conflict" commit -qam other
+command git -C "$_fixture_root/conflict" switch -q main
+print -r -- main > "$_fixture_root/conflict/tracked"
+command git -C "$_fixture_root/conflict" commit -qam main
+command git -C "$_fixture_root/conflict" merge -q other >/dev/null 2>&1 || true
+result=("${(Q@)${(z)$(_shsh_async_git_status 7 "$_fixture_root/conflict")}}")
+assert_equal '' "${result[3]}" 'does not classify a conflict as ordinary dirty state'
+assert_equal '#' "${result[4]}" 'reports a conflict with its dedicated marker'
+_shsh_git_branch=main
+_shsh_git_dirty=${result[3]}
+_shsh_git_conflict=${result[4]}
+_shsh_git_action=merge
+_shsh_git_arrows=
+_shsh_git_stash=${result[5]}
+_shsh_update_git_render
+assert_equal 'main# merge' "$_shsh_git_plain" 'places the conflict marker beside the branch'
+assert_equal '%F{#cba6f7}main%f%F{#f38ba8}#%f %F{#f5c2e7}merge%f' \
+  "$_shsh_git_prompt" 'renders the conflict marker in Catppuccin Red'
 
 mkdir -p "$_fixture_root/.git/rebase-merge"
 : > "$_fixture_root/.git/rebase-merge/interactive"

@@ -14,6 +14,7 @@ typeset -gA _shsh_colors=(
   path '#89b4fa'
   branch '#cba6f7'
   dirty '#fab387'
+  conflict '#f38ba8'
   git_action '#f5c2e7'
   git_sync '#94e2d5'
   stash '#f5e0dc'
@@ -172,7 +173,7 @@ _shsh_async_git_branch() {
 
 _shsh_async_git_status() {
   local generation=$1 workdir=$2 line xy
-  local -i unstaged=0 staged=0 untracked=0 stash=0
+  local -i unstaged=0 staged=0 untracked=0 conflicted=0 stash=0
   local -a fields
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
@@ -182,7 +183,8 @@ _shsh_async_git_status() {
         fields=(${=line})
         stash=${fields[3]}
         ;;
-      ([12u]' '*)
+      ('u '*) conflicted=1 ;;
+      ([12]' '*)
         xy=${line[3,4]}
         [[ ${xy[1]} != '.' ]] && staged=1
         [[ ${xy[2]} != '.' ]] && unstaged=1
@@ -195,13 +197,15 @@ _shsh_async_git_status() {
       2>/dev/null
   )
 
-  local dirty= stash_marker=
+  local dirty= conflict_marker= stash_marker=
   (( unstaged )) && dirty+='*'
   (( staged )) && dirty+='+'
   (( untracked )) && dirty+='?'
+  (( conflicted )) && conflict_marker='#'
   (( stash )) && stash_marker='≡'
 
-  print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} ${(q)stash_marker}
+  print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} \
+    ${(q)conflict_marker} ${(q)stash_marker}
 }
 
 _shsh_git_arrows() {
@@ -321,6 +325,7 @@ _shsh_clear_git_state() {
   typeset -g _shsh_git_branch=
   typeset -g _shsh_git_action=
   typeset -g _shsh_git_dirty=
+  typeset -g _shsh_git_conflict=
   typeset -g _shsh_git_arrows=
   typeset -g _shsh_git_stash=
   typeset -ga _shsh_fetch_commands=(pull fetch)
@@ -351,6 +356,10 @@ _shsh_update_git_render() {
       plain+=$_shsh_git_dirty
       _shsh_escape "$_shsh_git_dirty"
       prompt+="%F{${_shsh_colors[dirty]}}${REPLY}%f"
+    fi
+    if [[ -n $_shsh_git_conflict ]]; then
+      plain+=$_shsh_git_conflict
+      prompt+="%F{${_shsh_colors[conflict]}}${_shsh_git_conflict}%f"
     fi
     if [[ -n $_shsh_git_action ]]; then
       plain+=" ${_shsh_git_action}"
@@ -509,10 +518,11 @@ _shsh_apply_async_result() {
       [[ $previous != $_shsh_git_prompt ]] && changed=1
       ;;
     (_shsh_async_git_status)
-      (( ${#result} == 4 )) || return 0
+      (( ${#result} == 5 )) || return 0
       previous=$_shsh_git_prompt
       _shsh_git_dirty=${result[3]}
-      _shsh_git_stash=${result[4]}
+      _shsh_git_conflict=${result[4]}
+      _shsh_git_stash=${result[5]}
       _shsh_update_git_render
       [[ $previous != $_shsh_git_prompt ]] && changed=1
       ;;

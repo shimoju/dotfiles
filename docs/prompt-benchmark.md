@@ -279,6 +279,19 @@ LLVM clone上で400 msかかるfetchを模したjobを使い、50 ms間隔で10�
 
 中央値の差はCleanで初期表示−0.020 ms、branch−0.011 ms、Git状態完了−2.588 ms、Dirtyでそれぞれ−0.027 ms、+0.194 ms、+3.227 msだった。最大差は約0.65%で測定揺らぎの範囲に収まり、入力開始とbranch表示に性能回帰はない。
 
+### conflict専用マーカー
+
+2026-08-20に、同じ`git status --porcelain=v2`のuレコードからconflictを判定し、通常dirtyとは別の`#`を表示するようにした。外部コマンドは追加していない。直前の統合後実装と同じLLVM cloneでClean／Dirty各30回比較した。単位はms。
+
+| 状態 | 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
+|---|---|---:|---:|---:|---:|
+| Clean | 追加前 | 0.973 / 1.064 | 11.967 / 13.291 | 491.111 / 500.592 | 487.682 / 497.216 |
+| Clean | conflict表示 | 0.975 / 1.108 | 12.199 / 13.536 | 497.060 / 533.364 | 493.820 / 530.061 |
+| Dirty | 追加前 | 0.969 / 1.131 | 12.381 / 13.294 | 498.454 / 514.588 | 495.292 / 506.914 |
+| Dirty | conflict表示 | 0.925 / 1.130 | 12.444 / 14.234 | 496.425 / 524.307 | 493.392 / 517.234 |
+
+初期表示中央値の差はCleanで+0.002 ms、Dirtyで−0.044 msだった。Git状態完了はCleanで+5.949 ms、Dirtyで−2.029 msと方向が逆で、worker内の差もほぼ同じである。プロンプト側の追加処理はstatus出力の分岐1回と空マーカーの受け渡しだけなので、この差はGitの作業ツリー走査時間の揺らぎと判断した。
+
 ## Git標準の高速化機能
 
 未追跡ファイルを除外するとGit状態は速くなるが、プロンプトから`?`が欠落する。完全な状態を維持したまま高速化できるか、同じLLVM cloneでGit組み込み[FSMonitor](https://git-scm.com/docs/git-fsmonitor--daemon)と[untracked cache](https://git-scm.com/docs/git-status.html#_untracked_files_and_performance)を比較した。
