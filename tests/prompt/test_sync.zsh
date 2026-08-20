@@ -80,4 +80,14 @@ COLUMNS=20
 _shsh_render
 assert_true '(( ${#_shsh_render_left_plain} + ${#_shsh_render_right_plain} <= COLUMNS ))' 'drops low-priority right content in narrow terminals'
 
+functions[_test_shsh_async_refresh]=$functions[_shsh_async_refresh]
+_shsh_async_refresh() { :; }
+typeset _precmd_output=$(setopt noerrexit; TERM=dumb; false; _shsh_precmd; print -n -- "marker:${_shsh_last_status}")
+assert_equal $'\nmarker:1' "$_precmd_output" 'prints one blank line without losing command status'
+functions[_shsh_async_refresh]=$functions[_test_shsh_async_refresh]
+unfunction _test_shsh_async_refresh
+
+typeset _redraw_output=$(_shsh_async_redraw; print -n -- marker)
+assert_equal marker "$_redraw_output" 'does not print a blank line during asynchronous redraw'
+
 print -r -- "1..${_test_count}"

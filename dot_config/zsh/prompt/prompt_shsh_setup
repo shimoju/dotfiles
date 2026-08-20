@@ -612,6 +612,7 @@ _shsh_render() {
 
 _shsh_precmd() {
   local -i last_status=$?
+  print
   typeset -gi _shsh_last_status=$last_status
   typeset -g _shsh_command_duration=
 
