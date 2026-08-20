@@ -57,6 +57,7 @@ fpath=("${_repo_root}/dot_config/zsh/prompt" $fpath)
 autoload -Uz promptinit
 promptinit
 prompt shsh
+TERM=dumb _shsh_precmd >/dev/null
 
 repeat 40; do
   sleep 0.05

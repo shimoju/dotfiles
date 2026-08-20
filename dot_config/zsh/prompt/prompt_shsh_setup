@@ -632,15 +632,13 @@ _shsh_precmd() {
 
 _shsh_detect_identity
 typeset -gi _shsh_last_status=0
-typeset -g _shsh_git_plain=
-typeset -g _shsh_git_prompt=
+_shsh_clear_git_state
 typeset -g _shsh_kube_plain=
 typeset -g _shsh_kube_prompt=
 typeset -g _shsh_kube_context=
 typeset -g _shsh_kube_namespace=
 typeset -g _shsh_kube_current_signature=
 typeset -g _shsh_kube_loaded_signature=
-typeset -ga _shsh_fetch_commands=(pull fetch)
 typeset -gi _shsh_generation=0
 typeset -gi _shsh_async_ready=0
 typeset -gi _shsh_async_restarting=0
@@ -654,4 +652,4 @@ add-zsh-hook preexec _shsh_preexec
 PROMPT2="%F{${_shsh_colors[subtle]}}… %(1_.%_ .%_)%f%(?.%F{${_shsh_colors[success]}}.%F{${_shsh_colors[failure]}})❯%f "
 PROMPT4="%F{${_shsh_colors[warning]}}%e%f %F{${_shsh_colors[path]}}%x%f%F{${_shsh_colors[subtle]}}:%I @ %f%F{${_shsh_colors[branch]}}%N%f%F{${_shsh_colors[subtle]}}:%i >%f "
 
-_shsh_precmd
+_shsh_render
