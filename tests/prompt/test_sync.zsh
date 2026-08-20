@@ -118,4 +118,27 @@ assert_equal $'\e]0;remote path\a' "$_title_output" \
 _shsh_title_prefix=$_saved_title_prefix
 unset SSH_CONNECTION
 
+typeset -gi _zpty_checks=0 _flushes=0
+zpty() {
+  (( ++_zpty_checks ))
+  return 0
+}
+async_flush_jobs() {
+  (( ++_flushes ))
+}
+async_job() {
+  return 0
+}
+functions[_saved_kube_signature]=$functions[_shsh_kube_signature]
+_shsh_kube_signature() {
+  return 1
+}
+_shsh_async_ready=1
+_shsh_async_refresh
+assert_equal 1 "$_zpty_checks" 'checks a ready worker only once per refresh'
+assert_equal 1 "$_flushes" 'flushes jobs after reusing a live worker'
+unfunction zpty async_flush_jobs async_job
+functions[_shsh_kube_signature]=$functions[_saved_kube_signature]
+unfunction _saved_kube_signature
+
 print -r -- "1..${_test_count}"

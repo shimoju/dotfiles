@@ -366,8 +366,12 @@ _shsh_update_git_render() {
 }
 
 _shsh_async_init() {
+  REPLY=0
   if (( ${_shsh_async_ready:-0} )); then
-    zpty -t _shsh &>/dev/null && return 0
+    if zpty -t _shsh &>/dev/null; then
+      REPLY=1
+      return 0
+    fi
     typeset -gi _shsh_async_ready=0
   fi
   (( $+functions[async_start_worker] )) || return 1
@@ -394,6 +398,7 @@ _shsh_update_fetch_aliases() {
 
 _shsh_async_refresh() {
   local workdir=$PWD
+  local -i reuse_worker=0
 
   if [[ ${_shsh_async_pwd-} != $workdir ]]; then
     _shsh_clear_git_state
@@ -401,11 +406,11 @@ _shsh_async_refresh() {
   fi
 
   (( ++_shsh_generation ))
-  if (( ${_shsh_async_ready:-0} )) &&
-      zpty -t _shsh &>/dev/null; then
+  _shsh_async_init || return
+  reuse_worker=$REPLY
+  if (( reuse_worker )); then
     async_flush_jobs _shsh 2>/dev/null || true
   fi
-  _shsh_async_init || return
   async_job _shsh _shsh_async_git_branch \
     $_shsh_generation "$workdir" || return
   async_job _shsh _shsh_async_git_arrows \
