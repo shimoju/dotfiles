@@ -264,6 +264,21 @@ LLVM clone上で400 msかかるfetchを模したjobを使い、50 ms間隔で10�
 
 中央値の差はCleanで初期表示−0.051 ms、branch−0.564 ms、Git状態完了−1.627 ms、Dirtyでそれぞれ−0.040 ms、−0.270 ms、+0.216 msだった。いずれも測定揺らぎの範囲で、専用workerと5分判定を追加しても入力開始やローカルGit表示は遅くなっていない。Cleanのbranch p95は15回中の外れ値1回に影響されている。
 
+### 非同期処理の回帰修正
+
+2026-08-20に、flush直後の同名job消失、repository移動時のstale表示、unborn branch、`promptsubst`、batched callbackの修正を統合した。`zsh-async`のunique workerでは、実行中jobをflushして5 ms後に同名jobを再投入する試験で20回中20回replacementが失われ、uniqueを外すと20回すべて完了した。
+
+性能はコミット`7d2c909`と統合後を同じLLVM cloneでClean／Dirty各30回比較した。自動fetchは成功するno-opへ差し替えた。単位はms。
+
+| 状態 | 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
+|---|---|---:|---:|---:|---:|
+| Clean | `7d2c909` | 0.993 / 1.116 | 11.978 / 13.033 | 493.699 / 501.495 | 490.348 / 496.427 |
+| Clean | 統合後 | 0.973 / 1.064 | 11.967 / 13.291 | 491.111 / 500.592 | 487.682 / 497.216 |
+| Dirty | `7d2c909` | 0.996 / 1.083 | 12.187 / 13.284 | 495.227 / 517.089 | 491.971 / 513.699 |
+| Dirty | 統合後 | 0.969 / 1.131 | 12.381 / 13.294 | 498.454 / 514.588 | 495.292 / 506.914 |
+
+中央値の差はCleanで初期表示−0.020 ms、branch−0.011 ms、Git状態完了−2.588 ms、Dirtyでそれぞれ−0.027 ms、+0.194 ms、+3.227 msだった。最大差は約0.65%で測定揺らぎの範囲に収まり、入力開始とbranch表示に性能回帰はない。
+
 ## Git標準の高速化機能
 
 未追跡ファイルを除外するとGit状態は速くなるが、プロンプトから`?`が欠落する。完全な状態を維持したまま高速化できるか、同じLLVM cloneでGit組み込み[FSMonitor](https://git-scm.com/docs/git-fsmonitor--daemon)と[untracked cache](https://git-scm.com/docs/git-status.html#_untracked_files_and_performance)を比較した。

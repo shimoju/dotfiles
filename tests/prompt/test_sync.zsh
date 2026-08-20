@@ -118,6 +118,28 @@ assert_equal $'\e]0;remote path\a' "$_title_output" \
 _shsh_title_prefix=$_saved_title_prefix
 unset SSH_CONNECTION
 
+typeset _original_pwd=$PWD
+typeset _nonrepo_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-nonrepo.XXXXXXXX")
+_shsh_git_branch=main
+_shsh_update_git_render
+_shsh_render
+_shsh_async_pwd=$PWD
+functions[_saved_async_init]=$functions[_shsh_async_init]
+_shsh_async_init() {
+  return 1
+}
+builtin cd -q -- "$_nonrepo_root"
+_shsh_async_refresh || true
+assert_equal '' "$_shsh_git_prompt" \
+  'clears Git state immediately after leaving a repository'
+assert_true '[[ $PROMPT != *main* ]]' \
+  'removes the stale Git segment even when the worker cannot start'
+builtin cd -q -- "$_original_pwd"
+_shsh_async_pwd=$PWD
+functions[_shsh_async_init]=$functions[_saved_async_init]
+unfunction _saved_async_init
+rm -rf -- "$_nonrepo_root"
+
 typeset -gi _zpty_checks=0 _flushes=0
 typeset -ga _flushed_workers=()
 zpty() {

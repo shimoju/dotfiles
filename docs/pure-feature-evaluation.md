@@ -78,7 +78,7 @@ Catppuccin Mochaのパレットだけを使い、配色は公開設定にせずS
 | [x] | 段階的な表示 | branch、dirtyなどを別callbackで反映 | Pureと同等の体感速度に必要 |
 | [x] | 古い結果の破棄 | generationとPWDを照合 | `cd`競合を防ぐため必須 |
 | [x] | 実行中処理のcancel | 作業ツリー変更時にflush | ローカルGit workerだけを更新ごとにflushし、通信中のfetchは継続させる |
-| [x] | 同名jobの重複防止 | unique job | ローカルGit jobはunique worker、fetchはリポジトリ単位の5分制限で重複を防ぐ |
+| [x] | jobの重複防止 | unique job | ローカルGit jobはprompt更新時のflushとgeneration検証、fetchはリポジトリ単位の5分制限で重複を防ぐ |
 | [x] | foreground Gitとの競合回避 | pull／fetch実行時にbackground fetchをcancel | fetch専用workerだけをcancelし、そのリポジトリの5分間隔も更新する |
 | [x] | 認証promptの抑止 | fetchでterminal prompt、SSH password、GPG TTYを無効化 | background jobから端末を壊さないため必須 |
 | [x] | worker障害時の縮退 | 再起動し、失敗時はGit表示を消す | プロンプト入力を最優先する |

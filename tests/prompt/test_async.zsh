@@ -127,5 +127,30 @@ repeat 40; do
 done
 assert_equal custom-zsh-prompt "$_shsh_git_branch" 'worker restarts after an unexpected stop'
 
+async_stop_worker _shsh
+_shsh_async_ready=0
+_shsh_test_slow_job() {
+  sleep 0.15
+  print -r -- "$1"
+}
+typeset -g _shsh_test_result=
+_shsh_test_callback() {
+  [[ $1 == _shsh_test_slow_job && $2 == 0 ]] && _shsh_test_result=$3
+}
+_shsh_async_init
+async_unregister_callback _shsh
+async_job _shsh _shsh_test_slow_job old
+sleep 0.005
+async_flush_jobs _shsh
+async_job _shsh _shsh_test_slow_job replacement
+repeat 60; do
+  sleep 0.01
+  async_process_results _shsh _shsh_test_callback 2>/dev/null || true
+  [[ $_shsh_test_result == replacement ]] && break
+done
+assert_equal replacement "$_shsh_test_result" \
+  'flush does not discard the replacement branch job'
+unfunction _shsh_test_slow_job _shsh_test_callback
+
 print -r -- "1..${_test_count}"
 (( _test_failed == 0 ))

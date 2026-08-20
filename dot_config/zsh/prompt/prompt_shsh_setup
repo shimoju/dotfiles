@@ -1,5 +1,7 @@
 emulate -L zsh
-setopt prompt_subst
+# promptinit applies these after setup. Keep promptsubst off because dynamic
+# path and Git values are escaped only for prompt percent expansion.
+prompt_opts=(cr percent sp)
 
 autoload -Uz add-zsh-hook
 zmodload zsh/datetime
@@ -144,20 +146,24 @@ _shsh_async_git_branch() {
   local -a repository
 
   builtin cd -q -- "$workdir" 2>/dev/null || return
+  # Resolve HEAD last so unborn repositories still return their Git paths.
   repository=("${(@f)$(command git rev-parse \
     --show-toplevel \
-    --abbrev-ref HEAD \
     --git-path rebase-merge \
     --git-path rebase-apply \
     --git-path MERGE_HEAD \
     --git-path CHERRY_PICK_HEAD \
     --git-path REVERT_HEAD \
-    --git-path BISECT_LOG 2>/dev/null)}")
+    --git-path BISECT_LOG \
+    --abbrev-ref HEAD 2>/dev/null)}") || true
   top=${repository[1]-}
   if [[ -n $top ]]; then
-    branch=${repository[2]-}
-    [[ $branch == HEAD ]] && branch=$(command git rev-parse --short HEAD 2>/dev/null)
-    _shsh_git_action "${repository[@]:2}"
+    branch=${repository[8]-}
+    if [[ -z $branch || $branch == HEAD ]]; then
+      branch=$(command git symbolic-ref --quiet --short HEAD 2>/dev/null) ||
+        branch=$(command git rev-parse --short HEAD 2>/dev/null)
+    fi
+    _shsh_git_action "${repository[@]:1}"
     action=$REPLY
   fi
 
@@ -317,9 +323,9 @@ _shsh_clear_git_state() {
   typeset -g _shsh_git_dirty=
   typeset -g _shsh_git_arrows=
   typeset -g _shsh_git_stash=
+  typeset -ga _shsh_fetch_commands=(pull fetch)
   typeset -g _shsh_git_plain=
   typeset -g _shsh_git_prompt=
-  typeset -ga _shsh_fetch_commands=(pull fetch)
 }
 
 _shsh_update_kube_render() {
@@ -376,7 +382,8 @@ _shsh_async_init() {
   fi
   (( $+functions[async_start_worker] )) || return 1
 
-  if ! async_start_worker _shsh -u -n 2>/dev/null; then
+  # A flushed pid can remain in jobstates briefly; -u would drop its replacement.
+  if ! async_start_worker _shsh -n 2>/dev/null; then
     return 1
   fi
   async_register_callback _shsh _shsh_async_callback
@@ -433,6 +440,7 @@ _shsh_async_refresh() {
   if [[ ${_shsh_async_pwd-} != $workdir ]]; then
     _shsh_clear_git_state
     typeset -g _shsh_async_pwd=$workdir
+    _shsh_render
   fi
 
   (( ++_shsh_generation ))
@@ -468,30 +476,12 @@ _shsh_async_redraw() {
   return 0
 }
 
-_shsh_async_callback() {
-  setopt localoptions noshwordsplit
-  local job=$1 code=$2 output=$3 next_pending=$6
-  local previous
-  local -i do_render=0
+_shsh_apply_async_result() {
+  local job=$1 code=$2 output=$3 previous
+  local -i changed=0
   local -a result
 
-  if [[ $job == '[async]' ]]; then
-    if (( code == 2 || code == 3 || code == 130 )); then
-      previous=$_shsh_git_prompt
-      typeset -gi _shsh_async_ready=0
-      async_stop_worker _shsh 2>/dev/null || true
-      _shsh_clear_git_state
-      [[ $previous != $_shsh_git_prompt ]] && do_render=1
-      if (( ! ${_shsh_async_restarting:-0} )); then
-        typeset -gi _shsh_async_restarting=1
-        _shsh_async_refresh
-        _shsh_async_restarting=0
-      fi
-      (( do_render )) && _shsh_async_redraw
-    fi
-    return 0
-  fi
-
+  REPLY=0
   result=("${(Q@)${(z)output}}")
   (( ${#result} >= 2 )) || return 0
   [[ ${result[1]} == $_shsh_generation ]] || return 0
@@ -516,7 +506,7 @@ _shsh_async_callback() {
         _shsh_maybe_fetch "${result[2]}" "$_shsh_git_top"
       fi
       _shsh_update_git_render
-      [[ $previous != $_shsh_git_prompt ]] && do_render=1
+      [[ $previous != $_shsh_git_prompt ]] && changed=1
       ;;
     (_shsh_async_git_status)
       (( ${#result} == 4 )) || return 0
@@ -524,14 +514,14 @@ _shsh_async_callback() {
       _shsh_git_dirty=${result[3]}
       _shsh_git_stash=${result[4]}
       _shsh_update_git_render
-      [[ $previous != $_shsh_git_prompt ]] && do_render=1
+      [[ $previous != $_shsh_git_prompt ]] && changed=1
       ;;
     (_shsh_async_git_arrows)
       (( ${#result} == 3 )) || return 0
       previous=$_shsh_git_prompt
       _shsh_git_arrows=${result[3]}
       _shsh_update_git_render
-      [[ $previous != $_shsh_git_prompt ]] && do_render=1
+      [[ $previous != $_shsh_git_prompt ]] && changed=1
       ;;
     (_shsh_async_git_aliases)
       (( code == 0 && ${#result} == 4 )) || return 0
@@ -552,10 +542,41 @@ _shsh_async_callback() {
       _shsh_kube_context=${result[4]}
       _shsh_kube_namespace=${result[5]}
       _shsh_update_kube_render
-      [[ $previous != $_shsh_kube_prompt ]] && do_render=1
+      [[ $previous != $_shsh_kube_prompt ]] && changed=1
       ;;
-    (*) return 0 ;;
   esac
+  REPLY=$changed
+  return 0
+}
+
+_shsh_async_callback() {
+  setopt localoptions noshwordsplit
+  local job=$1 code=$2 output=$3 next_pending=$6
+  local previous
+  local -i do_render=0
+
+  if [[ $job == '[async]' ]]; then
+    if (( code == 2 || code == 3 || code == 130 )); then
+      previous=$_shsh_git_prompt
+      typeset -gi _shsh_async_ready=0
+      async_stop_worker _shsh 2>/dev/null || true
+      _shsh_clear_git_state
+      [[ $previous != $_shsh_git_prompt ]] && do_render=1
+      if (( ! ${_shsh_async_restarting:-0} )); then
+        typeset -gi _shsh_async_restarting=1
+        _shsh_async_refresh
+        _shsh_async_restarting=0
+      fi
+    fi
+    if (( ${_shsh_async_render_requested:-0} || do_render )); then
+      _shsh_async_render_requested=0
+      _shsh_async_redraw
+    fi
+    return 0
+  fi
+
+  _shsh_apply_async_result "$job" "$code" "$output"
+  do_render=$REPLY
 
   if (( next_pending )); then
     (( do_render )) && typeset -gi _shsh_async_render_requested=1

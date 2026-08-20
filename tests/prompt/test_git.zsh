@@ -80,6 +80,12 @@ functions[_saved_async_redraw]=$functions[_shsh_async_redraw]
 _shsh_async_redraw() {
   (( ++_redraw_count ))
 }
+_shsh_async_render_requested=1
+_shsh_async_callback _shsh_async_git_branch 0 \
+  "$(_shsh_async_git_branch 6 "$_fixture_root")" 0 '' 0
+assert_equal 1 "$_redraw_count" 'flushes a deferred redraw after a stale result'
+assert_equal 0 "$_shsh_async_render_requested" 'clears the deferred redraw flag'
+_redraw_count=0
 _shsh_async_callback _shsh_async_git_branch 0 \
   "$(_shsh_async_git_branch 7 "$_fixture_root")" 0 '' 0
 assert_equal main "$_shsh_git_branch" 'accepts the current branch generation'
@@ -109,6 +115,13 @@ command git -C "$_fixture_root" switch -q --detach HEAD
 result=("${(Q@)${(z)$(_shsh_async_git_branch 7 "$_fixture_root")}}")
 assert_equal "$_detached_head" "${result[4]}" 'reports the short hash for detached HEAD'
 command git -C "$_fixture_root" switch -q main
+
+mkdir -p "$_fixture_root/unborn"
+command git -C "$_fixture_root/unborn" init -q -b fresh
+result=("${(Q@)${(z)$(_shsh_async_git_branch 7 "$_fixture_root/unborn")}}")
+assert_equal "$_fixture_root/unborn" "${result[3]}" \
+  'reports the top-level of an unborn repository'
+assert_equal fresh "${result[4]}" 'reports an unborn branch'
 
 mkdir -p "$_fixture_root/.git/rebase-merge"
 : > "$_fixture_root/.git/rebase-merge/interactive"

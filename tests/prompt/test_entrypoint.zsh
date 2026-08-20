@@ -32,10 +32,13 @@ ln -s "${_source_zdotdir}/prompt" "${_test_zdotdir}/prompt"
 
 source "$ASYNC_ZSH_PATH"
 ZDOTDIR=$_test_zdotdir
+setopt promptsubst
 source "${_source_zdotdir}/dot_zshrc" > "${_test_zdotdir}/startup-output"
 
 assert 'theme setup does not print a blank line' \
   test ! -s "${_test_zdotdir}/startup-output"
+assert 'theme disables prompt substitution' \
+  test "${options[promptsubst]}" = off
 assert 'precmd hook is registered' \
   test "${precmd_functions[(Ie)_shsh_precmd]}" -gt 0
 assert 'preexec hook is registered' \
