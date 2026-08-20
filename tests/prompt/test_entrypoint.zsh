@@ -25,9 +25,9 @@ ZDOTDIR=$_source_zdotdir
 source "${_source_zdotdir}/dot_zshrc.d/02_prompt.zsh"
 
 assert 'precmd hook is registered' \
-  test "${precmd_functions[(Ie)prompt_shsh_precmd]}" -gt 0
+  test "${precmd_functions[(Ie)_shsh_precmd]}" -gt 0
 assert 'preexec hook is registered' \
-  test "${preexec_functions[(Ie)prompt_shsh_preexec]}" -gt 0
+  test "${preexec_functions[(Ie)_shsh_preexec]}" -gt 0
 assert 'prompt has two lines' \
   test "${#${(f)PROMPT}}" -eq 2
 assert 'input line contains only the prompt symbol' \
@@ -37,5 +37,5 @@ assert 'right prompt is unused' \
 assert 'theme directory is first in fpath' \
   test "$fpath[1]" = "${_source_zdotdir}/prompt"
 
-async_stop_worker prompt_shsh 2>/dev/null || true
+async_stop_worker _shsh 2>/dev/null || true
 (( _failures == 0 ))

@@ -44,40 +44,40 @@ autoload -Uz promptinit
 promptinit
 prompt shsh
 
-prompt_shsh_human_time 5
+_shsh_human_time 5
 assert_equal 5s "$REPLY" 'formats seconds'
-prompt_shsh_human_time 3665
+_shsh_human_time 3665
 assert_equal '1h 1m 5s' "$REPLY" 'formats compound duration'
-prompt_shsh_human_time 90000
+_shsh_human_time 90000
 assert_equal '1d 1h' "$REPLY" 'omits zero duration units'
 
-prompt_shsh_shorten_path '~/src/project' 20
+_shsh_shorten_path '~/src/project' 20
 assert_equal '~/src/project' "$REPLY" 'keeps a path that fits'
-prompt_shsh_shorten_path '~/one/two/three/project' 15
+_shsh_shorten_path '~/one/two/three/project' 15
 assert_equal '…/three/project' "$REPLY" 'shortens at component boundaries'
-prompt_shsh_shorten_path '/a/very-long-component' 8
+_shsh_shorten_path '/a/very-long-component' 8
 assert_equal '…mponent' "$REPLY" 'falls back to tail truncation'
 
-prompt_shsh_last_status=0
+_shsh_last_status=0
 COLUMNS=80
-prompt_shsh_render
+_shsh_render
 assert_contains "$PROMPT" $'\n%F{#a6e3a1}❯%f ' 'renders a two-line success prompt'
 assert_contains "$PROMPT" '%F{#89b4fa}' 'renders the path in Mocha Blue'
 assert_contains "$PROMPT" '%F{#7f849c}' 'renders the clock in Mocha Overlay 1'
-assert_equal 8 "${#prompt_shsh_render_right_plain}" 'renders current time at the right'
-assert_true '(( ${#prompt_shsh_render_left_plain} + prompt_shsh_render_padding + ${#prompt_shsh_render_right_plain} == COLUMNS ))' 'aligns the right segment to the terminal edge'
+assert_equal 8 "${#_shsh_render_right_plain}" 'renders current time at the right'
+assert_true '(( ${#_shsh_render_left_plain} + _shsh_render_padding + ${#_shsh_render_right_plain} == COLUMNS ))' 'aligns the right segment to the terminal edge'
 
-prompt_shsh_last_status=1
-prompt_shsh_render
+_shsh_last_status=1
+_shsh_render
 assert_contains "$PROMPT" '%F{#f38ba8}❯%f ' 'renders failures in Mocha Red'
 
-prompt_shsh_command_duration='1m 2s'
+_shsh_command_duration='1m 2s'
 COLUMNS=80
-prompt_shsh_render
+_shsh_render
 assert_contains "$PROMPT" '%F{#f9e2af}1m 2s%f' 'renders slow commands in Mocha Yellow'
 
 COLUMNS=20
-prompt_shsh_render
-assert_true '(( ${#prompt_shsh_render_left_plain} + ${#prompt_shsh_render_right_plain} <= COLUMNS ))' 'drops low-priority right content in narrow terminals'
+_shsh_render
+assert_true '(( ${#_shsh_render_left_plain} + ${#_shsh_render_right_plain} <= COLUMNS ))' 'drops low-priority right content in narrow terminals'
 
 print -r -- "1..${_test_count}"

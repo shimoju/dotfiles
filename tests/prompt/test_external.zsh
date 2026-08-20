@@ -60,19 +60,19 @@ command git -C "$_fixture_root/other" commit -qam remote
 command git -C "$_fixture_root/other" push -q
 
 typeset -a result
-result=("${(Q@)${(z)$(prompt_shsh_async_git_fetch 9 "$_fixture_root/local")}}")
+result=("${(Q@)${(z)$(_shsh_async_git_fetch 9 "$_fixture_root/local")}}")
 assert_equal 1 "${result[3]}" 'background fetch succeeds without interaction'
 assert_equal '⇣' "${result[4]}" 'background fetch refreshes the behind marker'
 
 command git -C "$_fixture_root/local" config alias.sync 'pull --ff-only'
-result=("${(Q@)${(z)$(prompt_shsh_async_git_aliases 9 "$_fixture_root/local")}}")
+result=("${(Q@)${(z)$(_shsh_async_git_aliases 9 "$_fixture_root/local")}}")
 assert_equal sync "${result[3]}" 'discovers aliases that may fetch'
 
-prompt_shsh_fetch_commands=(pull fetch sync)
+_shsh_fetch_commands=(pull fetch sync)
 assert_success 'detects a foreground fetch' \
-  prompt_shsh_command_conflicts_with_fetch 'git -C repo fetch origin'
+  _shsh_command_conflicts_with_fetch 'git -C repo fetch origin'
 assert_success 'detects a fetching Git alias' \
-  prompt_shsh_command_conflicts_with_fetch 'command git sync'
+  _shsh_command_conflicts_with_fetch 'command git sync'
 
 mkdir -p "$_fixture_root/bin" "$_fixture_root/kube"
 print -r -- '#!/bin/sh' > "$_fixture_root/bin/kubectl"
@@ -83,17 +83,17 @@ print -r -- 'apiVersion: v1' > "$_fixture_root/kube/config"
 PATH="$_fixture_root/bin:$PATH"
 rehash
 KUBECONFIG="$_fixture_root/kube/config"
-prompt_shsh_kube_signature
+_shsh_kube_signature
 typeset _signature=$REPLY
-result=("${(Q@)${(z)$(prompt_shsh_async_kube 9 "$PWD" "$_signature" "$KUBECONFIG")}}")
+result=("${(Q@)${(z)$(_shsh_async_kube 9 "$PWD" "$_signature" "$KUBECONFIG")}}")
 assert_equal context-a "${result[4]}" 'reads the current Kubernetes context locally'
 assert_equal namespace-a "${result[5]}" 'reads the current Kubernetes namespace locally'
 
-prompt_shsh_kube_context=${result[4]}
-prompt_shsh_kube_namespace=${result[5]}
-prompt_shsh_update_kube_render
-assert_equal '⎈ context-a/namespace-a' "$prompt_shsh_kube_plain" 'builds the Kubernetes segment'
-assert_equal '%F{#74c7ec}⎈ context-a/namespace-a%f' "$prompt_shsh_kube_prompt" \
+_shsh_kube_context=${result[4]}
+_shsh_kube_namespace=${result[5]}
+_shsh_update_kube_render
+assert_equal '⎈ context-a/namespace-a' "$_shsh_kube_plain" 'builds the Kubernetes segment'
+assert_equal '%F{#74c7ec}⎈ context-a/namespace-a%f' "$_shsh_kube_prompt" \
   'renders Kubernetes in Mocha Sapphire'
 
 print -r -- "1..${_test_count}"
