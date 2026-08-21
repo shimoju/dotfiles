@@ -14,6 +14,8 @@
 [rebase]
 	autosquash = true
 	autostash = true
+[rerere]
+	enabled = true
 [fetch]
 	prune = true
 [pull]
