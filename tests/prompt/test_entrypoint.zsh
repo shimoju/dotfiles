@@ -59,10 +59,11 @@ assert 'right prompt is unused' \
   test -z "$RPROMPT"
 assert 'theme directory is first in fpath' \
   test "$fpath[1]" = "${_test_zdotdir}/prompt"
-TRAPWINCH $signals[(i)WINCH]
+typeset -i _winch_signal=$(( signals[(i)WINCH] - 1 ))
+TRAPWINCH $_winch_signal
 assert 'existing function-based WINCH trap is untouched' \
   test "$_previous_winch_calls" -eq 1
 assert 'WINCH trap receives the signal number' \
-  test "$_previous_winch_signal" -eq "$signals[(i)WINCH]"
+  test "$_previous_winch_signal" -eq "$_winch_signal"
 
 (( _failures == 0 ))
