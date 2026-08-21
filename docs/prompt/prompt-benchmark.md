@@ -1,0 +1,206 @@
+# Shshプロンプトのベンチマーク
+
+## 目的
+
+入力可能になるまでの時間と、非同期Git表示が完成するまでの時間を混同せずに測定する。ベンチマークでは次の4時点を分けて記録する。
+
+1. 初期表示: 次の入力記号がterminalへ届くまで
+2. branch表示: branchまたはdetached HEADを描画できるまで
+3. Git状態完了: 詳細statusが表示へ反映されるまで
+4. worker内Git計算: IPCと再描画を除いたworker内のstatus実行時間
+
+ユーザー体験に最も強く影響する指標は初期表示である。Git状態完了はbackgroundで消費するCPUとI/Oの評価には必要だが、そのまま体感速度を表すものではない。
+
+## 測定用リポジトリ
+
+LLVMのshallow cloneを専用ディレクトリへ作成する。価値のある作業内容を含むリポジトリでは、ベンチマーク用の変更やcleanupを実行しない。
+
+```sh
+_prompt_bench_root="${TMPDIR%/}/prompt-benchmark"
+_prompt_bench_repo="$_prompt_bench_root/llvm-project"
+
+mkdir -p "$_prompt_bench_root"
+git clone --depth=1 https://github.com/llvm/llvm-project.git "$_prompt_bench_repo"
+
+git -C "$_prompt_bench_repo" rev-parse HEAD
+git -C "$_prompt_bench_repo" count-objects -vH
+git -C "$_prompt_bench_repo" rev-list --count HEAD
+du -sh "$_prompt_bench_repo"
+```
+
+clean条件はclone直後の状態とする。dirty条件では、追跡済みファイルの変更と未追跡ファイルを1件ずつ作る。
+
+```sh
+printf '\n# prompt benchmark\n' >> "$_prompt_bench_repo/README.md"
+: > "$_prompt_bench_repo/.prompt-benchmark-untracked"
+git -C "$_prompt_bench_repo" status --short
+```
+
+測定後は、この使い捨てcloneだけを元へ戻す。
+
+```sh
+git -C "$_prompt_bench_repo" restore -- README.md
+rm -- "$_prompt_bench_repo/.prompt-benchmark-untracked"
+```
+
+shallow cloneはindexとworktreeの走査を評価する用途には適しているが、長い履歴を対象とする処理は評価できない。ahead／behindなどの履歴依存処理を変更するときは、full cloneを別のworkloadとして追加する。
+
+## 測定ハーネスの要件
+
+一時的な`ZDOTDIR`とShshに必要な最小限の依存を使い、擬似terminal上で実際の対話Zshを起動する。`_shsh_render`だけを直接測る方法は、ZLE、prompt expansion、worker IPC、再描画を含まないため、microbenchmarkにしか使用しない。
+
+ExpectなどのPTY driverを使用する。smoke testと複数回のwarm upを行った後、cleanとdirtyを最低30回ずつ測定する。最初の`❯`で次の試行へ進まず、branchとstatusの両callbackが届くまでZLEのevent loopを動かす。
+
+Shshの関数をwrapして測定eventを追加してよいが、jobの実行順序を変えたり、1つの処理を分割したり、同期経路へ外部コマンドを追加したりしない。空のcallbackを使ってinstrumentation自体のcostも確認する。
+
+ローカルGitの測定中は、`_shsh_maybe_fetch`を成功するno-opへ差し替える。network latencyは安定せず、fetchは別workerで動作するため、専用testへ分離する。この差し替えはproduction optionにせず、測定metadataへ記録する。
+
+## イベントログ
+
+1行に1件、次の形式で記録する。
+
+```text
+EVENT ITERATION TIMESTAMP DETAIL
+```
+
+時刻には`zsh/datetime`の`EPOCHREALTIME`を使用する。共通loggerは次のようにできる。
+
+```zsh
+zmodload zsh/datetime
+
+_prompt_bench_log() {
+  local event=$1 detail=${2-}
+  print -r -- "$event $PROMPT_BENCH_ITERATION $EPOCHREALTIME $detail" \
+    >> "$PROMPT_BENCH_LOG"
+}
+```
+
+最低限、次を記録する。
+
+| イベント | 記録位置 | 意味 |
+|---|---|---|
+| `START` | 測定コマンドから戻る直前 | 試行の基準時刻 |
+| `RENDER` | 入力記号がPTYへ届いた時点 | 入力可能になった時刻 |
+| `CALLBACK branch` | branch結果の受信時 | branchを表示できる時刻 |
+| `CALLBACK status` | 詳細statusの受信時 | ローカルGit表示の完了時刻 |
+| `WORKER status` | status jobの終了時 | IPCと再描画を除いたGit計算時間 |
+
+試行`i`の対応する時刻または時間を`Sᵢ`、`Rᵢ`、`Bᵢ`、`Gᵢ`、`Wᵢ`とし、次を計算する。
+
+```text
+initial_promptᵢ = Rᵢ - Sᵢ
+branch_visibleᵢ = Bᵢ - Sᵢ
+git_completeᵢ   = Gᵢ - Sᵢ
+worker_gitᵢ     = Wᵢ
+```
+
+各指標のsample数、median、mean、min、p95、maxをms単位で出す。主な比較にはmedianを使い、scheduler由来の外れ値を確認するためp95も併記する。timeoutした試行は欠測とし、timeout値を成功sampleへ混ぜない。
+
+## 再現性のための記録
+
+長期保存する測定では、harness、生event、terminal log、集計値、metadataを同じ場所へ保存する。
+
+```text
+docs/prompt/benchmark-results/YYYY-MM-DD/
+├── metadata.md
+├── harness/
+├── events-clean.log
+├── events-dirty.log
+├── summary.json
+├── terminal-clean.tty
+└── terminal-dirty.tty
+```
+
+通常の確認では一時ディレクトリだけでよい。設計判断または性能回帰の根拠として再利用する測定だけをcommitする。
+
+`metadata.md`には最低限次を記録する。
+
+- OS、architecture、terminal、Zsh、Git、`zsh-async`のversion
+- Shshのcommitとworktreeの変更有無
+- リポジトリURL、commit、shallow depth、object数、pack size、worktree size
+- clean／dirty状態の正確な作成方法
+- `core.fsmonitor`、`core.untrackedCache`、関連するglobal／system Git設定
+- warm up回数、測定回数、terminalの縦横、電源状態
+- fetchを無効化または差し替えたか
+- instrumentationによる変更と、その実測cost
+
+revisionを比較する場合はこれらの条件を揃える。cold／warm sample、異なるLLVM commit、異なるdirty状態、異なるcache設定を同じ比較に混ぜない。
+
+## 回帰判定
+
+LLVM workloadでは、入力とbranch表示に次の固定基準を使用する。
+
+| 指標 | 上限 |
+|---|---:|
+| 初期表示 median | 5 ms |
+| 初期表示 p95 | 10 ms |
+| branch表示 median | 25 ms |
+
+Git状態完了はリポジトリ、filesystem、Git cacheに支配されるため、固定の絶対上限を設けない。Git処理量を意図的に変えていない修正では、同条件のbefore／afterを比較し、次の場合に原因を調べる。
+
+- Git状態完了またはworker内Git計算のmedianが10%以上悪化した。
+- worker完了からstatus反映までの差が10 msを超えた。
+- 新しいtimeout、古い結果の混入、入力停止、再描画の破損が発生した。
+
+性能確認には対話動作も含める。branchとstatusの更新中に、文字入力、履歴移動、補完、`Ctrl-C`、拡大・縮小方向のresizeを試す。再描画後も編集bufferとcursor位置を保持し、移動前のディレクトリから届いた結果を表示しないことを確認する。
+
+## 現在の参考値
+
+現在残すbaselineは、動的rendererと安全なマルチバイトパス短縮を含む修正済みのShshで測定した値である。他のprompt libraryとの比較ではなく、将来の回帰確認に使用する。
+
+| 項目 | 値 |
+|---|---|
+| 測定日 | 2026-08-21 |
+| OS | macOS 26.6.2、arm64 |
+| Zsh | 5.9 |
+| Git | 2.55.0 |
+| リポジトリ | `llvm/llvm-project`のshallow clone |
+| リポジトリcommit | `6c206e3` |
+| worktree | 約2.9 GB |
+| pack | 293.55 MiB、191,166 objects |
+| 測定回数 | clean／dirty各30回 |
+| fetch | harness内で成功するno-opへ差し替え |
+
+単位はms、値はmedian / p95。
+
+| 状態 | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+|---|---:|---:|---:|---:|
+| Clean | 1.900 / 5.741 | 12.368 / 13.290 | 488.511 / 497.286 | 485.507 / 492.940 |
+| Dirty | 1.927 / 2.160 | 12.137 / 13.039 | 489.991 / 495.966 | 487.142 / 492.635 |
+
+約490 msのstatus走査は入力を遅らせず、初期表示のmedianは2 ms未満だった。worker内Git計算とGit状態完了の小さな差が、ShshのIPC、callback、再描画によるoverheadである。
+
+## 自動fetchのテスト
+
+fetchのscheduleはローカルlatencyとは別に測定する。約400 msかかる決定的なworker関数を使用し、50 ms間隔でpromptを10回更新する。期待する結果は次のとおり。
+
+- 同じリポジトリでfetch jobが1回だけqueueへ入る。
+- ローカルrefreshがそのjobをcancelしない。
+- jobが1回完了する。
+- 5分のinterval内に2回目をqueueしない。
+- foreground fetchはnetwork workerだけをcancelする。
+
+性能回帰の比較には実remoteを使用しない。非対話の認証失敗を確認するsmoke testでは実remoteを使用してよいが、remote、network条件、rate limitの状態を記録する。
+
+## Gitキャッシュの参考値
+
+Shshは常に未追跡ファイルを取得する。prompt独自の除外設定やstale dirty cacheではなく、GitのFSMonitorとuntracked cacheを使う設計である。
+
+同じLLVM cloneを数回の`git status`でwarm upした後、`GIT_OPTIONAL_LOCKS=0`を指定して15回測定した。
+
+| Git設定 | 未追跡を含むstatus mean | 未追跡を除外したstatus mean |
+|---|---:|---:|
+| FSMonitorなし、untracked cacheなし | 475.0 ms | 136.4 ms |
+| FSMonitorのみ | 366.6 ms | 30.6 ms |
+| FSMonitor + untracked cache | 44.8 ms | 31.2 ms |
+
+FSMonitorだけでは未追跡ディレクトリの走査が支配的だった。両cacheを有効にすると、完全なstatusと未追跡を除外したstatusの差は約14 msになり、Shshの設定を増やさずに`?`を維持できる。
+
+この表を再測定するときは、使い捨てcloneだけに設定する。
+
+```sh
+git -C "$_prompt_bench_repo" config --local core.fsmonitor true
+git -C "$_prompt_bench_repo" config --local core.untrackedCache true
+```
+
+測定前にcacheをwarm upし、filesystemが組み込みFSMonitorに対応しているかを記録する。使い捨てcloneが不要になったら、リポジトリ固有の設定を戻し、そのFSMonitor daemonを停止する。
