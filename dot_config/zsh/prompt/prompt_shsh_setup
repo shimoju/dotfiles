@@ -190,29 +190,31 @@ _shsh_async_git_branch() {
 
 _shsh_async_git_status() {
   local generation=$1 workdir=$2 line xy
-  local -i unstaged=0 staged=0 untracked=0 conflicted=0 stash=0
+  local -i status_code=0 unstaged=0 staged=0 untracked=0 conflicted=0 stash=0
   local -a fields
 
-  builtin cd -q -- "$workdir" 2>/dev/null || return
-  while IFS= read -r line; do
-    case $line in
-      ('# stash '*)
-        fields=(${=line})
-        stash=${fields[3]}
-        ;;
-      ('u '*) conflicted=1 ;;
-      ([12]' '*)
-        xy=${line[3,4]}
-        [[ ${xy[1]} != '.' ]] && staged=1
-        [[ ${xy[2]} != '.' ]] && unstaged=1
-        ;;
-      ('? '*) untracked=1 ;;
-    esac
-  done < <(
+  if builtin cd -q -- "$workdir" 2>/dev/null; then
     GIT_OPTIONAL_LOCKS=0 command git status \
       --porcelain=v2 --show-stash --untracked-files=normal --no-renames \
-      2>/dev/null
-  )
+      2>/dev/null | while IFS= read -r line; do
+        case $line in
+          ('# stash '*)
+            fields=(${=line})
+            stash=${fields[3]}
+            ;;
+          ('u '*) conflicted=1 ;;
+          ([12]' '*)
+            xy=${line[3,4]}
+            [[ ${xy[1]} != '.' ]] && staged=1
+            [[ ${xy[2]} != '.' ]] && unstaged=1
+            ;;
+          ('? '*) untracked=1 ;;
+        esac
+      done
+    status_code=${pipestatus[1]:-1}
+  else
+    status_code=1
+  fi
 
   local dirty= conflict_marker= stash_marker=
   (( unstaged )) && dirty+='*'
@@ -223,6 +225,7 @@ _shsh_async_git_status() {
 
   print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} \
     ${(q)conflict_marker} ${(q)stash_marker}
+  return $status_code
 }
 
 _shsh_git_arrows() {
@@ -343,6 +346,7 @@ _shsh_clear_git_state() {
   typeset -g _shsh_git_action=
   typeset -g _shsh_git_dirty=
   typeset -g _shsh_git_conflict=
+  typeset -gi _shsh_git_unknown=0
   typeset -g _shsh_git_arrows=
   typeset -g _shsh_git_stash=
   typeset -ga _shsh_fetch_commands=(pull fetch)
@@ -377,6 +381,10 @@ _shsh_update_git_render() {
     if [[ -n $_shsh_git_conflict ]]; then
       plain+=$_shsh_git_conflict
       prompt+="%F{${_shsh_colors[conflict]}}${_shsh_git_conflict}%f"
+    fi
+    if (( _shsh_git_unknown )); then
+      plain+='!'
+      prompt+="%F{${_shsh_colors[warning]}}!%f"
     fi
     if [[ -n $_shsh_git_action ]]; then
       plain+=" ${_shsh_git_action}"
@@ -535,9 +543,17 @@ _shsh_apply_async_result() {
     (_shsh_async_git_status)
       (( ${#result} == 5 )) || return 0
       previous=$_shsh_git_prompt
-      _shsh_git_dirty=${result[3]}
-      _shsh_git_conflict=${result[4]}
-      _shsh_git_stash=${result[5]}
+      if (( code == 0 )); then
+        _shsh_git_dirty=${result[3]}
+        _shsh_git_conflict=${result[4]}
+        _shsh_git_stash=${result[5]}
+        _shsh_git_unknown=0
+      else
+        _shsh_git_dirty=
+        _shsh_git_conflict=
+        _shsh_git_stash=
+        _shsh_git_unknown=1
+      fi
       _shsh_update_git_render
       [[ $previous != $_shsh_git_prompt ]] && changed=1
       ;;

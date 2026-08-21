@@ -51,11 +51,12 @@ Gitマーカーは次の意味を持つ。
 | `+` | stagedの変更 |
 | `?` | 未追跡ファイル |
 | `#` | 未解決のconflict |
+| `!` | Git statusを取得できず状態が不明 |
 | `⇣` | upstreamよりbehind |
 | `⇡` | upstreamよりahead |
 | `≡` | 1件以上のstash |
 
-Git操作中は`rebase-i`、`rebase-m`、`rebase`、`am`、`merge`、`cherry-pick`、`revert`、`bisect`のいずれかを表示する。conflictは通常の作業を止める状態なのでRed、通常のdirty状態はPeachとして区別する。
+Git操作中は`rebase-i`、`rebase-m`、`rebase`、`am`、`merge`、`cherry-pick`、`revert`、`bisect`のいずれかを表示する。conflictは通常の作業を止める状態なのでRed、通常のdirty状態はPeachとして区別する。status取得に失敗した場合は途中まで解析した結果を破棄し、dirtyかcleanかを断定せずYellowの`!`を表示する。
 
 Kubernetesは`⎈ context/namespace`と表示する。Gitにはアイコンを付けず、KubernetesだけにUnicode記号を残すことで、表示頻度の高いGitプロンプトをミニマルに保つ。選択中のcontextにnamespaceがなければ`default`を表示する。
 
@@ -102,7 +103,7 @@ Shshは`zsh-async`を直接使用し、branch、status、upstream、alias、自�
 - branch確定後の`git rev-list`によるahead／behind
 - 展開結果に`pull`または`fetch`を含むGit aliasの検出
 
-branchとstatusを別jobにすることで、巨大なworktreeの走査完了を待たずにbranchを先行表示する。dirty、staged、untracked、conflict、stashは1回のstatus出力から判定する。statusでは`GIT_OPTIONAL_LOCKS=0`を設定し、プロンプトによるindex更新や任意lockとの競合を避ける。
+branchとstatusを別jobにすることで、巨大なworktreeの走査完了を待たずにbranchを先行表示する。dirty、staged、untracked、conflict、stashは1回のstatus出力から判定する。statusでは`GIT_OPTIONAL_LOCKS=0`を設定し、プロンプトによるindex更新や任意lockとの競合を避ける。Gitが非zeroで終了した場合はjobの終了codeをcallbackへ伝え、部分的なstatusを表示へ反映しない。
 
 ローカルjobの結果にはgenerationと作業ディレクトリを含める。callbackは現在のgenerationと`$PWD`に一致しない結果を破棄し、移動前または古いプロンプトの結果が現在の表示を上書きしないようにする。更新時は不要になったローカルjobをflushし、複数結果がまとまって届いた場合は再描画をまとめる。
 
@@ -168,7 +169,7 @@ LLVMでの参考測定では、両方を無効にした475.0 msから、両方�
 |---|---|
 | 成功 | Green `#a6e3a1` |
 | 失敗、root、conflict | Red `#f38ba8` |
-| 実行時間、サスペンド中ジョブ | Yellow `#f9e2af` |
+| 実行時間、サスペンド中ジョブ、Git status不明 | Yellow `#f9e2af` |
 | パス | Blue `#89b4fa` |
 | branch | Mauve `#cba6f7` |
 | dirty | Peach `#fab387` |

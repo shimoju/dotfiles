@@ -108,6 +108,47 @@ assert_equal 3 "$_redraw_count" 'redraws when the Git status changes'
 _shsh_async_callback _shsh_async_git_status 0 \
   "$(_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
 assert_equal 3 "$_redraw_count" 'skips redraw when the Git status is unchanged'
+
+mkdir -p "$_fixture_root/fake-bin"
+typeset _fake_git="$_fixture_root/fake-bin/git"
+{
+  print -r -- '#!/bin/sh'
+  print -r -- "printf '%s\\n' '? partial'"
+  print -r -- 'exit 42'
+} > "$_fake_git"
+command chmod +x "$_fake_git"
+
+typeset _failed_status_output
+typeset -i _failed_status_code=0
+_failed_status_output=$(PATH="${_fake_git:h}:$PATH" \
+  _shsh_async_git_status 7 "$_fixture_root") || _failed_status_code=$?
+result=("${(Q@)${(z)_failed_status_output}}")
+assert_equal 42 "$_failed_status_code" 'propagates a failed git status exit code'
+assert_equal 5 "${#result}" 'keeps the result envelope on git status failure'
+assert_equal '?' "${result[3]}" 'parses output emitted before git status fails'
+
+_shsh_async_callback _shsh_async_git_status "$_failed_status_code" \
+  "$_failed_status_output" 0 '' 0
+assert_equal 1 "$_shsh_git_unknown" 'marks a failed git status as unknown'
+assert_equal '' "$_shsh_git_dirty" 'discards partial dirty state on failure'
+assert_equal 'main! ⇣⇡' "$_shsh_git_plain" 'renders unknown beside the branch'
+assert_equal '%F{#cba6f7}main%f%F{#f9e2af}!%f %F{#94e2d5}⇣⇡%f' \
+  "$_shsh_git_prompt" 'renders unknown in the warning color'
+assert_equal 4 "$_redraw_count" 'redraws when Git status becomes unknown'
+
+_shsh_async_callback _shsh_async_git_status 0 \
+  "$(_shsh_async_git_status 7 "$_fixture_root")" 0 '' 0
+assert_equal 0 "$_shsh_git_unknown" 'clears unknown after git status recovers'
+assert_equal 'main*+? ⇣⇡ ≡' "$_shsh_git_plain" 'restores status after recovery'
+assert_equal 5 "$_redraw_count" 'redraws when Git status recovers'
+
+typeset _stale_failed_output
+_stale_failed_output=$(PATH="${_fake_git:h}:$PATH" \
+  _shsh_async_git_status 6 "$_fixture_root") || true
+_shsh_async_callback _shsh_async_git_status 42 \
+  "$_stale_failed_output" 0 '' 0
+assert_equal 0 "$_shsh_git_unknown" 'rejects unknown from a stale generation'
+assert_equal 5 "$_redraw_count" 'does not redraw for a stale failure'
 functions[_shsh_async_redraw]=$functions[_saved_async_redraw]
 unfunction _saved_async_redraw
 
