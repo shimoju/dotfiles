@@ -313,6 +313,21 @@ LLVM clone上で400 msかかるfetchを模したjobを使い、50 ms間隔で10�
 
 動的rendererはcommand substitutionを伴うため、初期表示中央値はWINCH版よりCleanで1.064 ms、Dirtyで1.178 ms増えた。それでも中央値2.110 ms以下、p95 2.300 ms以下で、5 msの合格基準内に十分収まる。branch表示の差はCleanで+0.104 ms、Dirtyで+0.431 ms、Git状態完了とworker内計算の差は最大約3.2 msで、バックグラウンドGit走査の揺らぎの範囲だった。約1.1 msの同期costと引き換えに、縮小・拡大のどちらでもZshの最初の描画から正しい幅になる。
 
+### マルチバイト末尾切り詰めの安全化
+
+2026-08-21に、表示幅指定のparameter expansion `(ml:)` が長いマルチバイトcomponentでZsh 5.9をクラッシュさせる問題を修正した。末尾suffixの開始位置をdisplay widthで二分探索し、`(ml:)`を使わずに最長の収まるsuffixを選ぶ。テーマ経由の同じ入力を30個の独立Zsh processで実行し、全回で20 columns以内の結果を得た。
+
+修正前の`c779430`と修正後を同じLLVM cloneでClean／Dirty各30回測定した。単位はms。
+
+| 状態 | 実装 | 初期表示 median / p95 | ブランチ表示 median / p95 | Git状態完了 median / p95 | worker内Git計算 median / p95 |
+|---|---|---:|---:|---:|---:|
+| Clean | 修正前 | 1.915 / 3.247 | 12.319 / 13.375 | 489.107 / 497.514 | 485.405 / 494.605 |
+| Clean | 修正後 | 1.900 / 5.741 | 12.368 / 13.290 | 488.511 / 497.286 | 485.507 / 492.940 |
+| Dirty | 修正前 | 1.975 / 2.247 | 12.218 / 13.882 | 490.360 / 497.151 | 487.329 / 494.195 |
+| Dirty | 修正後 | 1.927 / 2.160 | 12.137 / 13.039 | 489.991 / 495.966 | 487.142 / 492.635 |
+
+初期表示中央値はCleanで−0.015 ms、Dirtyで−0.048 ms、branch表示中央値はそれぞれ+0.049 ms、−0.081 msだった。Git状態完了とworker内Git計算の差も最大0.596 msで、いずれも測定揺らぎの範囲に収まった。変更箇所だけを200文字のASCII component、limit 20で1万回測ると、修正前約302 ms、修正後約517 msで、1回あたりの差は約0.022 msだった。通常pathではこのfallbackへ入らず、長いpathでもprompt全体の合格基準に対して無視できる大きさである。
+
 ## Git標準の高速化機能
 
 未追跡ファイルを除外するとGit状態は速くなるが、プロンプトから`?`が欠落する。完全な状態を維持したまま高速化できるか、同じLLVM cloneでGit組み込み[FSMonitor](https://git-scm.com/docs/git-fsmonitor--daemon)と[untracked cache](https://git-scm.com/docs/git-status.html#_untracked_files_and_performance)を比較した。

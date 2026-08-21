@@ -48,10 +48,10 @@ _shsh_shorten_path() {
 
   local original=$1 path_text=$1
   local -i limit=$2
-  local prefix= result component candidate
+  local prefix= result component candidate tail
   local ellipsis='…' shortened_prefix='…/'
   local -a components
-  local -i index tail_limit
+  local -i index tail_limit low high middle
 
   if (( limit <= 1 )); then
     REPLY='…'
@@ -88,7 +88,20 @@ _shsh_shorten_path() {
 
   if (( ${(m)#result} > limit )); then
     tail_limit=$(( limit - ${(m)#ellipsis} ))
-    result="${ellipsis}${(ml:$tail_limit:::)result}"
+    # Suffix display width decreases monotonically as its start moves right.
+    low=1
+    high=${#result}
+    while (( low <= high )); do
+      middle=$(( (low + high) / 2 ))
+      candidate=${result[middle,-1]}
+      if (( ${(m)#candidate} <= tail_limit )); then
+        tail=$candidate
+        high=$(( middle - 1 ))
+      else
+        low=$(( middle + 1 ))
+      fi
+    done
+    result="${ellipsis}${tail}"
   fi
   REPLY=$result
 }
@@ -746,10 +759,11 @@ _shsh_render() {
     separator=
   fi
 
+  # Exposed for direct renderer tests. Prompt expansion runs in command
+  # substitution, so these assignments do not reach the interactive parent.
   typeset -g _shsh_render_left_plain=$left_plain
   typeset -g _shsh_render_right_plain=$right_plain
   typeset -gi _shsh_render_padding=$padding
-  typeset -gi _shsh_render_columns=$columns
 
   local indicator_color=$_shsh_colors[success]
   (( _shsh_last_status )) && indicator_color=$_shsh_colors[failure]

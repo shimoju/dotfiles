@@ -1,5 +1,6 @@
 #!/usr/bin/expect -f
 
+encoding system utf-8
 set timeout 10
 set source_zdotdir [file normalize [file join [file dirname [info script]] ../.. dot_config zsh]]
 set async_zsh_path $env(ASYNC_ZSH_PATH)
@@ -8,7 +9,10 @@ set test_zdotdir $env(PROMPT_TEST_ZDOTDIR)
 
 cd /private/tmp
 set env(TERM) xterm-256color
+set env(LANG) C.UTF-8
+set env(LC_ALL) C.UTF-8
 spawn -noecho zsh -dfi
+fconfigure $spawn_id -encoding utf-8
 
 proc expect_aligned_prompt {columns buffer description} {
   set first_line_pattern {\x1b\[38;2;137;180;250m([^\x1b]*)\x1b\[39m \x1b\[38;2;203;166;247mmain\x1b\[39m( +)\x1b\[38;2;127;132;156m([0-9]{2}:[0-9]{2}:[0-9]{2})\x1b\[39m}

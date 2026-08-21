@@ -34,7 +34,10 @@ assert_not_equal() {
 }
 
 typeset _repo_root=${0:A:h:h:h}
-typeset _repo_branch=$(command git -C "$_repo_root" branch --show-current)
+typeset _repo_branch=$(command git -C "$_repo_root" rev-parse --abbrev-ref HEAD)
+if [[ -z $_repo_branch || $_repo_branch == HEAD ]]; then
+  _repo_branch=$(command git -C "$_repo_root" rev-parse --short HEAD)
+fi
 typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-async.XXXXXXXX")
 _fixture_root=${_fixture_root:A}
 export GIT_CONFIG_GLOBAL=/dev/null

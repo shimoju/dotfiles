@@ -33,9 +33,10 @@ ln -s "${_source_zdotdir}/prompt" "${_test_zdotdir}/prompt"
 source "$ASYNC_ZSH_PATH"
 ZDOTDIR=$_test_zdotdir
 setopt promptsubst
-typeset -gi _previous_winch_calls=0
+typeset -gi _previous_winch_calls=0 _previous_winch_signal=0
 TRAPWINCH() {
   (( ++_previous_winch_calls ))
+  _previous_winch_signal=$1
 }
 source "${_source_zdotdir}/dot_zshrc" > "${_test_zdotdir}/startup-output"
 
@@ -58,8 +59,10 @@ assert 'right prompt is unused' \
   test -z "$RPROMPT"
 assert 'theme directory is first in fpath' \
   test "$fpath[1]" = "${_test_zdotdir}/prompt"
-TRAPWINCH $signals[WINCH]
+TRAPWINCH $signals[(i)WINCH]
 assert 'existing function-based WINCH trap is untouched' \
   test "$_previous_winch_calls" -eq 1
+assert 'WINCH trap receives the signal number' \
+  test "$_previous_winch_signal" -eq "$signals[(i)WINCH]"
 
 (( _failures == 0 ))

@@ -60,6 +60,9 @@ assert_equal '…mponent' "$REPLY" 'falls back to tail truncation'
 _shsh_shorten_path '~/tmp/ドキュメント/プロジェクト' 30
 assert_true '(( ${(m)#REPLY} <= 30 ))' \
   'shortens a multibyte path to its display-column limit'
+_shsh_shorten_path '~/tmp/ドキュメントドキュメントドキュメント' 20
+assert_true '[[ $REPLY == …* ]] && (( ${(m)#REPLY} <= 20 ))' \
+  'tail-truncates a long multibyte component without crashing'
 
 _shsh_last_status=0
 _shsh_time=12:34:56
