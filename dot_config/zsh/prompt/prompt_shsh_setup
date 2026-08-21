@@ -713,7 +713,7 @@ _shsh_render() {
     prefix_prompt+=($identity_prompt)
   fi
 
-  if [[ -n ${_shsh_git_plain-} ]]; then
+  if [[ ${_shsh_async_pwd-} == $PWD && -n ${_shsh_git_plain-} ]]; then
     suffix_plain+=("$_shsh_git_plain")
     suffix_prompt+=("$_shsh_git_prompt")
   fi

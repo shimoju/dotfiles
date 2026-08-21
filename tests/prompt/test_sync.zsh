@@ -78,10 +78,17 @@ assert_true \
 
 _shsh_git_plain='機能/修正*'
 _shsh_git_prompt='%F{#cba6f7}機能/修正%f%F{#fab387}*%f'
+_shsh_async_pwd=$PWD
 _shsh_render
 assert_true \
   '(( ${(m)#_shsh_render_left_plain} + _shsh_render_padding + ${(m)#_shsh_render_right_plain} == COLUMNS ))' \
   'aligns multibyte prompt segments by display width'
+
+_shsh_async_pwd=${PWD:h}
+_shsh_render
+assert_true '[[ $_shsh_rendered_prompt != *機能/修正* ]]' \
+  'hides Git data cached for a different directory'
+_shsh_async_pwd=$PWD
 
 _shsh_prompt_injection() {
   print -nr -- EXECUTED

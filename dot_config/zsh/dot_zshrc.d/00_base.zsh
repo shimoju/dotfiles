@@ -70,8 +70,16 @@ if (( $+commands[fzf] )); then
   }
 
   _ghq_fzf_cd_widget() {
-    f
-    zle reset-prompt
+    local previous_pwd=$PWD
+
+    if ! f || [[ $PWD == $previous_pwd ]]; then
+      zle .reset-prompt
+      return
+    fi
+
+    zle .redisplay
+    zle .kill-buffer
+    zle .accept-line
   }
   zle -N _ghq_fzf_cd_widget
   bindkey -M emacs '^O' _ghq_fzf_cd_widget
