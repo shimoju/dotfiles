@@ -229,25 +229,49 @@ fetchのscheduleはローカルlatencyとは別に測定する。約400 msかか
 
 性能回帰の比較には実remoteを使用しない。非対話の認証失敗を確認するsmoke testでは実remoteを使用してよいが、remote、network条件、rate limitの状態を記録する。
 
-## Gitキャッシュの参考値
+## Gitキャッシュの効果
 
-Shshは常に未追跡ファイルを取得する。prompt独自の除外設定やstale dirty cacheではなく、GitのFSMonitorとuntracked cacheを使う設計である。
+Shshは常に未追跡ファイルを取得する。prompt独自の除外設定やstale dirty cacheではなく、GitのFSMonitorとuntracked cacheを使ってstatus自体を高速化する設計である。
 
-同じLLVM cloneを数回の`git status`でwarm upした後、`GIT_OPTIONAL_LOCKS=0`を指定して15回測定した。
+### Git status
 
-| Git設定 | 未追跡を含むstatus mean | 未追跡を除外したstatus mean |
-|---|---:|---:|
-| FSMonitorなし、untracked cacheなし | 475.0 ms | 136.4 ms |
-| FSMonitorのみ | 366.6 ms | 30.6 ms |
-| FSMonitor + untracked cache | 44.8 ms | 31.2 ms |
-
-FSMonitorだけでは未追跡ディレクトリの走査が支配的だった。両cacheを有効にすると、完全なstatusと未追跡を除外したstatusの差は約14 msになり、Shshの設定を増やさずに`?`を維持できる。
-
-この表を再測定するときは、使い捨てcloneだけに設定する。
+比較と同じclean状態のLLVM cloneで測定した。Shshが実行する次のstatusを基準とし、未追跡だけを`no`へ変えたものと比較した。
 
 ```sh
-git -C "$_prompt_bench_repo" config --local core.fsmonitor true
-git -C "$_prompt_bench_repo" config --local core.untrackedCache true
+GIT_OPTIONAL_LOCKS=0 git status \
+  --porcelain=v2 --show-stash --untracked-files=normal --no-renames
 ```
 
-測定前にcacheをwarm upし、filesystemが組み込みFSMonitorに対応しているかを記録する。使い捨てcloneが不要になったら、リポジトリ固有の設定を戻し、そのFSMonitor daemonを停止する。
+cacheごとに通常のstatusでindexを初期化し、組み込みFSMonitor daemonの動作を確認してから、Hyperfineで5回warm up、30回測定した。単位はms、値はmedian / p95。
+
+| Git設定 | 未追跡を含むstatus | 未追跡を除外したstatus |
+|---|---:|---:|
+| cacheなし | 469.903 / 476.285 | 132.780 / 133.900 |
+| FSMonitorのみ | 365.449 / 369.763 | 28.442 / 28.831 |
+| FSMonitor + untracked cache | 42.545 / 43.022 | 29.160 / 29.487 |
+
+FSMonitorは追跡済みファイルの確認を約29 msまで短縮するが、未追跡ディレクトリの走査は高速化しない。untracked cacheを併用すると、未追跡を含むstatusは469.903 msから42.545 msへ約11倍高速になり、未追跡を除外した場合との差は約13 msまで縮まった。
+
+### Shsh全体
+
+FSMonitorとuntracked cacheを有効にしたまま、同じPTY harnessでShshをclean／dirty各30回測定した。単位はms、値はmedian / p95。
+
+| 状態 | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+|---|---:|---:|---:|---:|
+| Clean | 2.198 / 2.392 | 14.045 / 15.363 | 50.454 / 63.291 | 47.148 / 59.929 |
+| Dirty | 2.192 / 2.528 | 13.797 / 14.882 | 54.379 / 55.753 | 51.094 / 52.437 |
+
+cacheなしのGit状態完了は約489〜496 msだったため、cacheの併用で約50〜54 msまで短縮した。Powerlevel10kの約5 msには及ばないが、入力は約2 ms、branchは約14 msで表示され、詳細statusも非同期で約50 ms後に完成する。組み込みFSMonitorを利用できるローカルfilesystemでは、標準Gitだけでも大規模リポジトリの対話利用に十分な性能と判断できる。
+
+この結果はcacheがwarmな定常状態を示す。最初のindex走査、filesystemがFSMonitorを提供しない環境、network filesystemでは同じ性能を期待できない。
+
+利用前にuntracked cacheの対応を確認し、対象リポジトリへ設定する。
+
+```sh
+git -C "$_prompt_bench_repo" update-index --test-untracked-cache
+git -C "$_prompt_bench_repo" config --local core.fsmonitor true
+git -C "$_prompt_bench_repo" config --local core.untrackedCache true
+git -C "$_prompt_bench_repo" status --short
+```
+
+ベンチマークでは使い捨てcloneだけに設定する。測定後は設定とindex extensionを戻し、組み込みFSMonitor daemonを停止する。
