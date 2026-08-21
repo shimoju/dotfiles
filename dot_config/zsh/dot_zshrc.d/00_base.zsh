@@ -37,9 +37,10 @@ alias diff='diff --color=auto'
 
 # eza
 if (( $+commands[eza] )); then
-  alias l='eza --icons=auto'
-  alias la='eza -A --icons=auto'
-  alias ll='eza -lA --icons=auto'
+  alias l='eza --icons=auto --group-directories-first'
+  alias la='eza -A --icons=auto --group-directories-first'
+  alias ll='eza -lAh --icons=auto --git --group-directories-first'
+  alias lt='eza -TA --level=2 --icons=auto --group-directories-first'
 else
   alias l='ls'
   alias la='ls -A'
