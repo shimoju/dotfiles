@@ -144,31 +144,78 @@ Git状態完了はリポジトリ、filesystem、Git cacheに支配されるた�
 
 性能確認には対話動作も含める。branchとstatusの更新中に、文字入力、履歴移動、補完、`Ctrl-C`、拡大・縮小方向のresizeを試す。再描画後も編集bufferとcursor位置を保持し、移動前のディレクトリから届いた結果を表示しないことを確認する。
 
-## 現在の参考値
+## 現在の比較結果
 
-現在残すbaselineは、動的rendererと安全なマルチバイトパス短縮を含む修正済みのShshで測定した値である。他のprompt libraryとの比較ではなく、将来の回帰確認に使用する。
+最新のShshと、比較対象にしたprompt libraryの定常利用時の性能を同じPTY harnessで測定した。Typewrittenは`TYPEWRITTEN_PROMPT_LAYOUT=pure`を指定している。Powerlevel10kはLean設定を基に表示要素を揃え、起動後の`gitstatusd`がリポジトリ状態を保持した状態を測定した。
 
 | 項目 | 値 |
 |---|---|
-| 測定日 | 2026-08-21 |
+| 測定日 | 2026-08-22 |
 | OS | macOS 26.6.2、arm64 |
-| Zsh | 5.9 |
+| Zsh | Apple Zsh 5.9 |
 | Git | 2.55.0 |
-| リポジトリ | `llvm/llvm-project`のshallow clone |
+| 電源 | AC接続 |
+| PTY | `xterm-256color`、80×24 |
+| リポジトリ | `llvm/llvm-project`のdepth 1 clone |
 | リポジトリcommit | `6c206e3` |
-| worktree | 約2.9 GB |
+| worktree | 約2.8 GB |
 | pack | 293.55 MiB、191,166 objects |
+| Git cache | `core.fsmonitor`、`core.untrackedCache`ともに未設定 |
+| warm up | shell起動後2.5秒 |
 | 測定回数 | clean／dirty各30回 |
-| fetch | harness内で成功するno-opへ差し替え |
 
-単位はms、値はmedian / p95。
+測定対象のrevisionは次のとおり。
 
-| 状態 | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+- Shsh: `e83d8f2`
+- zsh-async: `ee1d11b`
+- Pure: `89c9e30`
+- Typewritten: `06f8575`
+- Powerlevel10k: `3308262`
+
+Shshの自動fetchは成功するno-opへ差し替え、Pureは`PURE_GIT_PULL=0`とした。network処理はどの測定にも含めていない。
+
+単位はms、値はmedian / p95。取得対象の各指標でsample数は30であり、timeoutと欠測はなかった。
+
+### Clean
+
+| Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
 |---|---:|---:|---:|---:|
-| Clean | 1.900 / 5.741 | 12.368 / 13.290 | 488.511 / 497.286 | 485.507 / 492.940 |
-| Dirty | 1.927 / 2.160 | 12.137 / 13.039 | 489.991 / 495.966 | 487.142 / 492.635 |
+| Shsh | 1.961 / 2.189 | 11.837 / 12.733 | 488.697 / 493.291 | 485.728 / 490.400 |
+| Pure | 0.877 / 1.033 | 84.509 / 125.187 | 495.492 / 540.235 | 492.274 / 498.898 |
+| Typewritten Pure | 16.063 / 16.506 | 26.874 / 27.752 | 543.159 / 552.743 | 523.780 / 533.196 |
+| Powerlevel10k Lean | 4.598 / 23.308 | 4.841 / 23.430 | 4.841 / 23.430 | — |
 
-約490 msのstatus走査は入力を遅らせず、初期表示のmedianは2 ms未満だった。worker内Git計算とGit状態完了の小さな差が、ShshのIPC、callback、再描画によるoverheadである。
+### Dirty
+
+追跡済みの`README.md`を変更し、未追跡ファイルを1件追加した。
+
+| Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+|---|---:|---:|---:|---:|
+| Shsh | 1.963 / 2.179 | 11.800 / 12.877 | 495.910 / 522.659 | 492.880 / 519.852 |
+| Pure | 0.940 / 0.986 | 73.400 / 116.382 | 498.114 / 525.858 | 494.637 / 511.784 |
+| Typewritten Pure | 15.993 / 16.657 | 26.852 / 27.932 | 543.012 / 587.019 | 523.230 / 566.673 |
+| Powerlevel10k Lean | 4.447 / 24.050 | 4.650 / 24.332 | 4.650 / 24.332 | — |
+
+### 比較
+
+- **Shsh**
+  - 初期表示は約2 msで、回帰判定の5 msを十分に下回る。
+  - 毎回新しいGit jobを実行する3実装ではbranch表示が約12 msで最も速い。
+  - Git状態完了は約0.49秒、worker完了から表示反映までの差はclean、dirtyとも約3 msだった。
+- **Pure**
+  - 初期表示が最も速く、medianは1 ms未満だった。
+  - branch表示は約73〜85 ms、Git状態完了は約0.50秒で、詳細statusの性能はShshとほぼ同等だった。
+- **Typewritten Pure**
+  - `precmd`でGit設定とリポジトリを同期判定してから描画するため、初期表示は約16 msだった。
+  - Git状態完了は約0.54秒で、毎回Git jobを実行する3実装の中では最も遅い。
+- **Powerlevel10k Lean**
+  - `gitstatusd`が保持した状態を同じprompt描画で利用するため、branchと詳細statusを約5 msで表示した。
+  - 各試行で独立したstatus scanを行わないためworker内Git計算は該当せず、他3実装のworker実行時間とは直接比較できない。
+  - daemon起動直後のcold性能もこの測定には含まない。
+
+Shsh、Pure、TypewrittenではGit statusを非同期に実行するため、Git状態完了までの時間は入力開始を妨げない。
+
+最終的に、定常状態のGit表示速度はPowerlevel10kが明確に最速である。Shshはdaemonを持たず標準Gitとzsh-asyncだけを使う構成のまま、Pureに近い初期応答と、Pure／Typewrittenより早いbranch表示を実現している。保守性を優先する現在の設計に対して、性能上の大きな不足は見られない。
 
 ## 自動fetchのテスト
 
