@@ -204,28 +204,23 @@ _shsh_async_git_branch() {
 }
 
 _shsh_async_git_status() {
-  local generation=$1 workdir=$2 output line xy
+  local generation=$1 workdir=$2 output line
   local -i status_code=0 unstaged=0 staged=0 untracked=0 conflicted=0 stash=0
-  local -a fields
 
   if builtin cd -q -- "$workdir" 2>/dev/null; then
     # Capturing the whole report avoids one read(2) per porcelain line.
     output=$(GIT_OPTIONAL_LOCKS=0 command git status \
       --porcelain=v2 --show-stash --untracked-files=normal --no-renames \
       2>/dev/null) && status_code=0 || status_code=$?
-    for line in ${(f)output}; do
-      case $line in
-        ('# stash '*)
-          fields=(${=line})
-          stash=${fields[3]}
+    for line in "${(f)output}"; do
+      case ${line[1]} in
+        ('#') [[ $line == '# stash '* ]] && stash=${line[9,-1]} ;;
+        (u) conflicted=1 ;;
+        ([12])
+          [[ ${line[3]} != '.' ]] && staged=1
+          [[ ${line[4]} != '.' ]] && unstaged=1
           ;;
-        ('u '*) conflicted=1 ;;
-        ([12]' '*)
-          xy=${line[3,4]}
-          [[ ${xy[1]} != '.' ]] && staged=1
-          [[ ${xy[2]} != '.' ]] && unstaged=1
-          ;;
-        ('? '*) untracked=1 ;;
+        ('?') untracked=1 ;;
       esac
     done
   else
