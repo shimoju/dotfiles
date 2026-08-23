@@ -56,7 +56,7 @@ Gitマーカーは次の意味を持つ。
 | `⇡` | upstreamよりahead |
 | `≡` | 1件以上のstash |
 
-Git操作中は`rebase-i`、`rebase-m`、`rebase`、`am`、`merge`、`cherry-pick`、`revert`、`bisect`のいずれかを表示する。conflictは通常の作業を止める状態なのでRed、通常のdirty状態はPeachとして区別する。status取得に失敗した場合は途中まで解析した結果を破棄し、dirtyかcleanかを断定せずYellowの`!`を表示する。
+Git操作中は`rebase-i`、`rebase-m`、`rebase`、`am`、`merge`、`cherry-pick`、`revert`、`bisect`のいずれかを表示する。conflictは通常の作業を止める状態なのでRed、通常のdirty状態はPeachとして区別する。status出力は全体を一度取得し、porcelain v2のrecord種別を先頭文字で判定する。pipeから1行ずつ読む処理と不要な文字列分割を避けることで、大量dirty時の解析costを抑える。status取得に失敗した場合は途中まで解析した結果を破棄し、dirtyかcleanかを断定せずYellowの`!`を表示する。
 
 Kubernetesは`⎈ context/namespace`と表示する。Gitにはアイコンを付けず、KubernetesだけにUnicode記号を残すことで、表示頻度の高いGitプロンプトをミニマルに保つ。選択中のcontextにnamespaceがなければ`default`を表示する。
 

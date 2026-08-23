@@ -36,11 +36,29 @@ printf '\n# prompt benchmark\n' >> "$_prompt_bench_repo/README.md"
 git -C "$_prompt_bench_repo" status --short
 ```
 
+大量dirty条件では、内容を書き換えずに同じporcelain出力を再現できるよう、modeが`100644`の追跡済みファイル5,500件をindex上で`100755`へ変更する。対象はclone直後のcleanな使い捨てリポジトリに限定する。
+
+```sh
+git -C "$_prompt_bench_repo" ls-files -s |
+  awk '$1 == "100644" { sub(/^[^\t]*\t/, ""); print; if (++n == 5500) exit }' |
+  git -C "$_prompt_bench_repo" update-index --chmod=+x --stdin
+
+test "$(git -C "$_prompt_bench_repo" status --porcelain=v2 --no-renames | wc -l)" -eq 5500
+```
+
 測定後は、この使い捨てcloneだけを元へ戻す。
 
 ```sh
 git -C "$_prompt_bench_repo" restore -- README.md
 rm -- "$_prompt_bench_repo/.prompt-benchmark-untracked"
+```
+
+大量dirty条件は、変更した5,500件がすべて元は`100644`だったことを利用して復元する。
+
+```sh
+git -C "$_prompt_bench_repo" diff --cached --name-only |
+  git -C "$_prompt_bench_repo" update-index --chmod=-x --stdin
+test -z "$(git -C "$_prompt_bench_repo" status --porcelain=v2)"
 ```
 
 shallow cloneはindexとworktreeの走査を評価する用途には適しているが、長い履歴を対象とする処理は評価できない。ahead／behindなどの履歴依存処理を変更するときは、full cloneを別のworkloadとして追加する。
@@ -49,7 +67,7 @@ shallow cloneはindexとworktreeの走査を評価する用途には適してい
 
 一時的な`ZDOTDIR`とShshに必要な最小限の依存を使い、擬似terminal上で実際の対話Zshを起動する。`_shsh_render`だけを直接測る方法は、ZLE、prompt expansion、worker IPC、再描画を含まないため、microbenchmarkにしか使用しない。
 
-ExpectなどのPTY driverを使用する。smoke testと複数回のwarm upを行った後、cleanとdirtyを最低30回ずつ測定する。最初の`❯`で次の試行へ進まず、branchとstatusの両callbackが届くまでZLEのevent loopを動かす。
+ExpectなどのPTY driverを使用する。smoke testと複数回のwarm upを行った後、clean、dirty、大量dirtyを最低30回ずつ測定する。最初の`❯`で次の試行へ進まず、branchとstatusの両callbackが届くまでZLEのevent loopを動かす。
 
 Shshの関数をwrapして測定eventを追加してよいが、jobの実行順序を変えたり、1つの処理を分割したり、同期経路へ外部コマンドを追加したりしない。空のcallbackを使ってinstrumentation自体のcostも確認する。
 
@@ -106,9 +124,11 @@ docs/prompt/benchmark-results/YYYY-MM-DD/
 ├── harness/
 ├── events-clean.log
 ├── events-dirty.log
+├── events-many-dirty.log
 ├── summary.json
 ├── terminal-clean.tty
-└── terminal-dirty.tty
+├── terminal-dirty.tty
+└── terminal-many-dirty.tty
 ```
 
 通常の確認では一時ディレクトリだけでよい。設計判断または性能回帰の根拠として再利用する測定だけをcommitする。
@@ -118,7 +138,7 @@ docs/prompt/benchmark-results/YYYY-MM-DD/
 - OS、architecture、terminal、Zsh、Git、`zsh-async`のversion
 - Shshのcommitとworktreeの変更有無
 - リポジトリURL、commit、shallow depth、object数、pack size、worktree size
-- clean／dirty状態の正確な作成方法
+- clean／dirty／大量dirty状態の正確な作成方法
 - `core.fsmonitor`、`core.untrackedCache`、関連するglobal／system Git設定
 - warm up回数、測定回数、terminalの縦横、電源状態
 - fetchを無効化または差し替えたか
@@ -128,13 +148,18 @@ revisionを比較する場合はこれらの条件を揃える。cold／warm sam
 
 ## 回帰判定
 
-LLVM workloadでは、入力とbranch表示に次の固定基準を使用する。
+LLVM workloadでは次の固定基準を使用する。Git cacheを使用しないclean、dirty、大量dirtyのすべてで、入力とbranch表示の基準を満たすことを確認する。
 
 | 指標 | 上限 |
 |---|---:|
-| 初期表示 median | 5 ms |
-| 初期表示 p95 | 10 ms |
-| branch表示 median | 25 ms |
+| 初期表示 median | 3 ms |
+| 初期表示 p95 | 5 ms |
+| branch表示 median | 20 ms |
+| 大量dirtyのworker内Git計算 median | 600 ms |
+
+現在値は初期表示medianが約1.8 ms、p95が約2.1 ms、branch表示medianが約12 msである。3／5／20 msは、測定揺らぎと小規模な機能追加を許容しつつ、同期処理や外部processの追加を検出できる余裕に絞った値である。
+
+大量dirtyの現在値は約524 msであり、600 msは約14%の余裕を持つ。Git自体の走査時間に左右されるため通常のstatusより余裕を小さくできないが、大規模なporcelain出力の処理効率が悪化した場合は検出できる。
 
 Git状態完了はリポジトリ、filesystem、Git cacheに支配されるため、固定の絶対上限を設けない。Git処理量を意図的に変えていない修正では、同条件のbefore／afterを比較し、次の場合に原因を調べる。
 
@@ -150,7 +175,7 @@ Git状態完了はリポジトリ、filesystem、Git cacheに支配されるた�
 
 | 項目 | 値 |
 |---|---|
-| 測定日 | 2026-08-22 |
+| 測定日 | 2026-08-23 |
 | OS | macOS 26.6.2、arm64 |
 | Zsh | Apple Zsh 5.9 |
 | Git | 2.55.0 |
@@ -162,11 +187,11 @@ Git状態完了はリポジトリ、filesystem、Git cacheに支配されるた�
 | pack | 293.55 MiB、191,166 objects |
 | Git cache | `core.fsmonitor`、`core.untrackedCache`ともに未設定 |
 | warm up | shell起動後2.5秒 |
-| 測定回数 | clean／dirty各30回 |
+| 測定回数 | clean／dirty／大量dirty各30回 |
 
 測定対象のrevisionは次のとおり。
 
-- Shsh: `e83d8f2`
+- Shsh: `850e443`
 - zsh-async: `ee1d11b`
 - Pure: `89c9e30`
 - Typewritten: `06f8575`
@@ -180,10 +205,10 @@ Shshの自動fetchは成功するno-opへ差し替え、Pureは`PURE_GIT_PULL=0`
 
 | Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
 |---|---:|---:|---:|---:|
-| Shsh | 1.961 / 2.189 | 11.837 / 12.733 | 488.697 / 493.291 | 485.728 / 490.400 |
-| Pure | 0.877 / 1.033 | 84.509 / 125.187 | 495.492 / 540.235 | 492.274 / 498.898 |
-| Typewritten Pure | 16.063 / 16.506 | 26.874 / 27.752 | 543.159 / 552.743 | 523.780 / 533.196 |
-| Powerlevel10k Lean | 4.598 / 23.308 | 4.841 / 23.430 | 4.841 / 23.430 | — |
+| Shsh | 1.803 / 2.001 | 11.575 / 12.794 | 491.994 / 498.566 | 488.917 / 495.114 |
+| Pure | 0.862 / 1.005 | 131.568 / 139.640 | 498.179 / 541.663 | 494.683 / 505.761 |
+| Typewritten Pure | 16.192 / 17.136 | 27.114 / 28.504 | 543.038 / 547.751 | 523.374 / 527.591 |
+| Powerlevel10k Lean | 4.293 / 12.294 | 4.477 / 12.531 | 4.477 / 12.531 | — |
 
 ### Dirty
 
@@ -191,31 +216,55 @@ Shshの自動fetchは成功するno-opへ差し替え、Pureは`PURE_GIT_PULL=0`
 
 | Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
 |---|---:|---:|---:|---:|
-| Shsh | 1.963 / 2.179 | 11.800 / 12.877 | 495.910 / 522.659 | 492.880 / 519.852 |
-| Pure | 0.940 / 0.986 | 73.400 / 116.382 | 498.114 / 525.858 | 494.637 / 511.784 |
-| Typewritten Pure | 15.993 / 16.657 | 26.852 / 27.932 | 543.012 / 587.019 | 523.230 / 566.673 |
-| Powerlevel10k Lean | 4.447 / 24.050 | 4.650 / 24.332 | 4.650 / 24.332 | — |
+| Shsh | 1.825 / 2.060 | 11.566 / 12.348 | 492.334 / 511.436 | 489.512 / 508.567 |
+| Pure | 0.914 / 0.970 | 132.434 / 139.788 | 497.453 / 501.641 | 493.828 / 498.211 |
+| Typewritten Pure | 16.160 / 17.612 | 27.514 / 30.125 | 544.688 / 551.120 | 524.715 / 531.097 |
+| Powerlevel10k Lean | 4.077 / 18.435 | 4.283 / 18.608 | 4.283 / 18.608 | — |
+
+### 大量dirty
+
+追跡済みファイル5,500件をindex上で`100644`から`100755`へ変更した。FSMonitorとuntracked cacheは使用していない。
+
+| Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+|---|---:|---:|---:|---:|
+| Shsh | 1.863 / 2.030 | 11.649 / 12.725 | 527.290 / 538.159 | 524.479 / 533.659 |
+| Pure | 0.854 / 1.014 | 129.077 / 137.523 | 521.510 / 527.759 | 517.599 / 521.704 |
+| Typewritten Pure | 16.041 / 16.460 | 26.952 / 28.160 | 568.070 / 573.033 | 548.295 / 553.657 |
+| Powerlevel10k Lean | 4.906 / 22.712 | 5.075 / 23.169 | 5.075 / 23.169 | — |
 
 ### 比較
 
-- **Shsh**
-  - 初期表示は約2 msで、回帰判定の5 msを十分に下回る。
-  - 毎回新しいGit jobを実行する3実装ではbranch表示が約12 msで最も速い。
-  - Git状態完了は約0.49秒、worker完了から表示反映までの差はclean、dirtyとも約3 msだった。
-- **Pure**
-  - 初期表示が最も速く、medianは1 ms未満だった。
-  - branch表示は約73〜85 ms、Git状態完了は約0.50秒で、詳細statusの性能はShshとほぼ同等だった。
-- **Typewritten Pure**
-  - `precmd`でGit設定とリポジトリを同期判定してから描画するため、初期表示は約16 msだった。
-  - Git状態完了は約0.54秒で、毎回Git jobを実行する3実装の中では最も遅い。
-- **Powerlevel10k Lean**
-  - `gitstatusd`が保持した状態を同じprompt描画で利用するため、branchと詳細statusを約5 msで表示した。
-  - 各試行で独立したstatus scanを行わないためworker内Git計算は該当せず、他3実装のworker実行時間とは直接比較できない。
-  - daemon起動直後のcold性能もこの測定には含まない。
+#### Shsh
+
+- 初期表示は約1.8 msで、回帰基準のmedian 3 ms、p95 5 msを十分に下回った。
+- 毎回新しいGit jobを実行する3実装では、branch表示が約12 msで最も速かった。
+- cleanと通常dirtyのGit状態完了は約0.49秒で、worker完了から表示反映までの差は約3 msだった。
+- 大量dirtyのworker中央値は524.479 msで、600 msの回帰基準を下回った。
+- 大量dirtyのworker中央値はPureより6.880 ms遅いが差は1.3%であり、porcelain v2からconflict、stash、通常dirtyを区別する処理を含めても許容できる。
+
+#### Pure
+
+- 初期表示が最も速く、medianは1 ms未満だった。
+- branch取得には汎用の`vcs_info`を使い、この測定ではjob自体の実行時間が約126 msになった。
+- 同じ`vcs_info`を単独で実行すると約11 msだったため、約130 msという値には、大規模worktreeを走査するstatus jobとの資源競合が含まれると考えられる。
+- 大量dirtyのworker中央値は517.599 msで、標準Gitを毎回実行する3実装の中で最も速かった。
+
+#### Typewritten Pure
+
+- `precmd`でGit設定とrepositoryを同期判定してから描画するため、初期表示は約16 msだった。
+- branch表示は約27 msであり、Shshよりやや遅い。
+- status出力に対して複数の`grep` processと`git stash list`を実行するため、worker時間はcleanで約523 ms、大量dirtyで約548 msと3実装中で最も遅かった。
+
+#### Powerlevel10k Lean
+
+- `gitstatusd`が保持した状態を同じprompt描画で利用するため、branchと詳細statusのmedianは約4〜5 msだった。
+- p95は約13〜23 msと振れたが、medianはworktreeのdirty件数によらず安定していた。
+- 各試行で独立したstatus scanを行わないためworker内Git計算は該当せず、他3実装のworker実行時間とは直接比較できない。
+- daemon起動直後のcold性能もこの測定には含まない。
 
 Shsh、Pure、TypewrittenではGit statusを非同期に実行するため、Git状態完了までの時間は入力開始を妨げない。
 
-最終的に、定常状態のGit表示速度はPowerlevel10kが明確に最速である。Shshはdaemonを持たず標準Gitとzsh-asyncだけを使う構成のまま、Pureに近い初期応答と、Pure／Typewrittenより早いbranch表示を実現している。保守性を優先する現在の設計に対して、性能上の大きな不足は見られない。
+最終的に、定常状態のGit表示速度はPowerlevel10kが明確に最速である。Shshはdaemonを持たず標準Gitとzsh-asyncだけを使う構成のまま、Pureに近い初期応答、毎回Git jobを実行する実装で最も早いbranch表示、Pureと1.3%差の大量dirty性能を実現している。追加のdaemonや状態cacheを導入するほどの差ではなく、保守性を優先する現在の設計に性能上の大きな不足は見られない。
 
 ## 自動fetchのテスト
 
