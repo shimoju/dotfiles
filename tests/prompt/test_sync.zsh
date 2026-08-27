@@ -122,7 +122,7 @@ assert_true \
 
 functions[_test_shsh_async_refresh]=$functions[_shsh_async_refresh]
 _shsh_async_refresh() { :; }
-typeset _precmd_output=$(setopt noerrexit; TERM=dumb; false; _shsh_precmd; print -n -- "marker:${_shsh_last_status}")
+typeset _precmd_output=$(setopt noerrexit; false; _shsh_precmd; print -n -- "marker:${_shsh_last_status}")
 assert_equal $'\nmarker:1' "$_precmd_output" 'prints one blank line without losing command status'
 functions[_shsh_async_refresh]=$functions[_test_shsh_async_refresh]
 unfunction _test_shsh_async_refresh

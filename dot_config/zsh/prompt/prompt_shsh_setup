@@ -204,9 +204,10 @@ _shsh_async_git_branch() {
 }
 
 _shsh_async_git_status() {
-  local generation=$1 workdir=$2 output stash_line record_pattern
-  local -i status_code=0 unstaged=0 staged=0 untracked=0 conflicted=0 stash=0
+  local generation=$1 workdir=$2 output
+  local -i status_code=0
   local -a status_lines
+  local dirty= conflict_marker= stash_marker=
 
   if builtin cd -q -- "$workdir" 2>/dev/null; then
     # Capturing the whole report avoids one read(2) per porcelain line.
@@ -217,27 +218,14 @@ _shsh_async_git_status() {
 
     # Array pattern searches run in Zsh itself instead of interpreting every
     # porcelain record in the shell language.
-    record_pattern='[12] [^.]*'
-    (( ${status_lines[(I)$~record_pattern]} )) && staged=1
-    record_pattern='[12] ?[^.]*'
-    (( ${status_lines[(I)$~record_pattern]} )) && unstaged=1
-    record_pattern='\? *'
-    (( ${status_lines[(I)$~record_pattern]} )) && untracked=1
-    record_pattern='u *'
-    (( ${status_lines[(I)$~record_pattern]} )) && conflicted=1
-    record_pattern='# stash *'
-    stash_line=${status_lines[(r)$~record_pattern]-}
-    [[ -n $stash_line ]] && stash=${stash_line[9,-1]}
+    (( ${status_lines[(I)[12] ?[^.]*]} )) && dirty+='*'
+    (( ${status_lines[(I)[12] [^.]*]} )) && dirty+='+'
+    (( ${status_lines[(I)\? *]} )) && dirty+='?'
+    (( ${status_lines[(I)u *]} )) && conflict_marker='#'
+    [[ -n ${status_lines[(r)# stash *]-} ]] && stash_marker='≡'
   else
     status_code=1
   fi
-
-  local dirty= conflict_marker= stash_marker=
-  (( unstaged )) && dirty+='*'
-  (( staged )) && dirty+='+'
-  (( untracked )) && dirty+='?'
-  (( conflicted )) && conflict_marker='#'
-  (( stash )) && stash_marker='≡'
 
   print -r -- ${(q)generation} ${(q)workdir} ${(q)dirty} \
     ${(q)conflict_marker} ${(q)stash_marker}

@@ -202,10 +202,11 @@ export ASYNC_ZSH_PATH=/path/to/zsh-async/async.zsh
 
 zsh tests/prompt/test_sync.zsh
 zsh tests/prompt/test_git.zsh
+zsh tests/prompt/test_git_status_parser.zsh
 zsh tests/prompt/test_async.zsh
 zsh tests/prompt/test_external.zsh
 zsh tests/prompt/test_entrypoint.zsh
 zsh tests/prompt/test_interactive.zsh
 ```
 
-`ASYNC_ZSH_PATH`には実際にinstallされている`zsh-async/async.zsh`を指定する。各testは順に、Zsh内部の描画、Git出力の解析、実workerと古い結果の破棄、fetch・Kubernetes連携、起動時の組み込み、ZLE bufferの保持と連続resizeを確認する。性能に影響する変更では[ベンチマーク手順](prompt-benchmark.md)も実行する。
+`ASYNC_ZSH_PATH`には実際にinstallされている`zsh-async/async.zsh`を指定する。各testは順に、Zsh内部の描画、Git出力の解析、porcelain recordの解析、実workerと古い結果の破棄、fetch・Kubernetes連携、起動時の組み込み、ZLE bufferの保持と連続resizeを確認する。性能に影響する変更では[ベンチマーク手順](prompt-benchmark.md)も実行する。

@@ -47,36 +47,46 @@ add-zsh-hook -d preexec _shsh_preexec
 
 typeset -a _baseline_times=() _candidate_times=()
 typeset _baseline_output _candidate_output _output
-typeset -F _started _elapsed
 
 repeat 5; do
   _benchmark_baseline_status 1 "$_fixture_root" >/dev/null
   _benchmark_candidate_status 1 "$_fixture_root" >/dev/null
 done
 
+# Reports the elapsed microseconds in REPLY and the report itself in _output.
+# Samples stay integers because the (on) sort flag compares each run of digits
+# on its own, which misorders decimals such as 5.4 against 5.18.
 _benchmark_measure() {
-  local function_name=$1
+  local variant=$1
+  local -F started=$EPOCHREALTIME
+  local -i elapsed
 
-  _started=$EPOCHREALTIME
-  _output=$("$function_name" 1 "$_fixture_root")
-  _elapsed=$(( (EPOCHREALTIME - _started) * 1000 ))
+  _output=$("_benchmark_${variant}_status" 1 "$_fixture_root")
+  elapsed=$(( (EPOCHREALTIME - started) * 1000000 ))
+  REPLY=$elapsed
+}
+
+_benchmark_record() {
+  local variant=$1
+
+  _benchmark_measure "$variant"
+  if [[ $variant == baseline ]]; then
+    _baseline_times+=($REPLY)
+    _baseline_output=$_output
+  else
+    _candidate_times+=($REPLY)
+    _candidate_output=$_output
+  fi
 }
 
 for (( _index = 1; _index <= _sample_count; ++_index )); do
+  # Alternate which variant runs first so drift is shared between them.
   if (( _index % 2 )); then
-    _benchmark_measure _benchmark_baseline_status
-    _baseline_times+=($_elapsed)
-    _baseline_output=$_output
-    _benchmark_measure _benchmark_candidate_status
-    _candidate_times+=($_elapsed)
-    _candidate_output=$_output
+    _benchmark_record baseline
+    _benchmark_record candidate
   else
-    _benchmark_measure _benchmark_candidate_status
-    _candidate_times+=($_elapsed)
-    _candidate_output=$_output
-    _benchmark_measure _benchmark_baseline_status
-    _baseline_times+=($_elapsed)
-    _baseline_output=$_output
+    _benchmark_record candidate
+    _benchmark_record baseline
   fi
   if [[ $_baseline_output != $_candidate_output ]]; then
     print -u2 -r -- 'benchmark outputs differ'
@@ -90,24 +100,20 @@ _benchmark_summary() {
   local label=$1
   shift
   local -a samples=("$@") sorted
-  local -i count=${#samples} p95_index
-  local -F total=0 median mean
-  local sample
+  local -i count=${#samples} p95_index median mean
 
   p95_index=$(( (count * 95 + 99) / 100 ))
   sorted=(${(on)samples})
-  for sample in $samples; do
-    (( total += sample ))
-  done
-  mean=$(( total / count ))
+  mean=$(( (${(j:+:)samples}) / count ))
   if (( count % 2 )); then
     median=$sorted[$(( (count + 1) / 2 ))]
   else
     median=$(( (sorted[count / 2] + sorted[count / 2 + 1]) / 2 ))
   fi
   printf '%-9s n=%d median=%.3f mean=%.3f min=%.3f p95=%.3f max=%.3f ms\n' \
-    "$label" $count $median $mean \
-    "${sorted[1]}" "${sorted[$p95_index]}" "${sorted[-1]}"
+    "$label" $count $(( median / 1000. )) $(( mean / 1000. )) \
+    $(( sorted[1] / 1000. )) $(( sorted[p95_index] / 1000. )) \
+    $(( sorted[-1] / 1000. ))
 }
 
 print -r -- "baseline=${_baseline_ref} candidate=worktree records=${_record_count}"
