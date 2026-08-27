@@ -22,6 +22,9 @@ typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-git.XXXXXXXX")
 _fixture_root=${_fixture_root:A}
 trap 'rm -rf -- "$_fixture_root"' EXIT
 
+export GIT_CONFIG_GLOBAL=/dev/null
+export GIT_CONFIG_NOSYSTEM=1
+export TERM=dumb
 fpath=("${_repo_root}/dot_config/zsh/prompt" $fpath)
 autoload -Uz promptinit
 promptinit

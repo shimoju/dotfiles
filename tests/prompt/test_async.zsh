@@ -34,6 +34,7 @@ assert_not_equal() {
 }
 
 typeset _repo_root=${0:A:h:h:h}
+export TERM=dumb
 export GIT_CONFIG_GLOBAL=/dev/null
 export GIT_CONFIG_NOSYSTEM=1
 typeset _repo_branch=$(command git -C "$_repo_root" rev-parse --abbrev-ref HEAD)

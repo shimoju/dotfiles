@@ -32,6 +32,7 @@ typeset _repo_root=${0:A:h:h:h}
 typeset _fixture_root=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-external.XXXXXXXX")
 _fixture_root=${_fixture_root:A}
 trap 'rm -rf -- "$_fixture_root"' EXIT
+export TERM=dumb
 export GIT_CONFIG_GLOBAL=/dev/null
 export GIT_CONFIG_NOSYSTEM=1
 

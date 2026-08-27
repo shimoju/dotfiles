@@ -39,6 +39,7 @@ assert_contains() {
 }
 
 typeset _repo_root=${0:A:h:h:h}
+export TERM=dumb
 fpath=("${_repo_root}/dot_config/zsh/prompt" $fpath)
 autoload -Uz promptinit
 promptinit

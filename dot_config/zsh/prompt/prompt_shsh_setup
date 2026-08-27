@@ -204,25 +204,30 @@ _shsh_async_git_branch() {
 }
 
 _shsh_async_git_status() {
-  local generation=$1 workdir=$2 output line
+  local generation=$1 workdir=$2 output stash_line record_pattern
   local -i status_code=0 unstaged=0 staged=0 untracked=0 conflicted=0 stash=0
+  local -a status_lines
 
   if builtin cd -q -- "$workdir" 2>/dev/null; then
     # Capturing the whole report avoids one read(2) per porcelain line.
     output=$(GIT_OPTIONAL_LOCKS=0 command git status \
       --porcelain=v2 --show-stash --untracked-files=normal --no-renames \
       2>/dev/null) && status_code=0 || status_code=$?
-    for line in "${(f)output}"; do
-      case ${line[1]} in
-        ('#') [[ $line == '# stash '* ]] && stash=${line[9,-1]} ;;
-        (u) conflicted=1 ;;
-        ([12])
-          [[ ${line[3]} != '.' ]] && staged=1
-          [[ ${line[4]} != '.' ]] && unstaged=1
-          ;;
-        ('?') untracked=1 ;;
-      esac
-    done
+    status_lines=("${(f)output}")
+
+    # Array pattern searches run in Zsh itself instead of interpreting every
+    # porcelain record in the shell language.
+    record_pattern='[12] [^.]*'
+    (( ${status_lines[(I)$~record_pattern]} )) && staged=1
+    record_pattern='[12] ?[^.]*'
+    (( ${status_lines[(I)$~record_pattern]} )) && unstaged=1
+    record_pattern='\? *'
+    (( ${status_lines[(I)$~record_pattern]} )) && untracked=1
+    record_pattern='u *'
+    (( ${status_lines[(I)$~record_pattern]} )) && conflicted=1
+    record_pattern='# stash *'
+    stash_line=${status_lines[(r)$~record_pattern]-}
+    [[ -n $stash_line ]] && stash=${stash_line[9,-1]}
   else
     status_code=1
   fi

@@ -20,6 +20,7 @@ assert() {
 typeset _repo_root=${0:A:h:h:h}
 typeset _source_zdotdir="${_repo_root}/dot_config/zsh"
 typeset _test_zdotdir=$(mktemp -d "${TMPDIR:-/tmp}/prompt-shsh-entrypoint.XXXXXXXX")
+export TERM=dumb
 
 cleanup() {
   async_stop_worker _shsh 2>/dev/null || true
