@@ -334,12 +334,3 @@ zsh tests/prompt/benchmark_status.zsh <baseline-ref> <サンプル数> <record�
 ```
 
 `git status`のfork込みの値なので、解析部分だけの差は総時間の一部として現れる。順序効果を避けるため試行ごとにbaselineとcandidateの実行順を入れ替え、sortを誤らせないようsampleは整数microsecondで保持する。
-
-5,500件のdirty recordを持つ一時リポジトリで、porcelain recordのループ解析を配列patternの検索へ置き換えた効果を40回測定した。単位はms、値はmedian / p95。
-
-| 実装 | Git status取得と解析 |
-|---|---:|
-| ループ解析 | 36.142 / 37.081 |
-| 配列pattern検索 | 31.506 / 34.250 |
-
-総時間の大半は`git status`自身が占めるため、解析方法の変更で短縮できるのは約4.6 msである。この差はworker内で完結し、初期表示には影響しない。
