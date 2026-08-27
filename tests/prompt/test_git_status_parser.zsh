@@ -69,10 +69,15 @@ assert_status '*' '' '' 'ordinary unstaged record' \
   "1 .M N... 100644 100644 100644 $_hash1 $_hash2 unstaged"
 assert_status '*+' '' '' 'ordinary staged and unstaged record' \
   "1 MM N... 100644 100644 100644 $_hash1 $_hash2 both"
-assert_status '+' '' '' 'renamed staged record' \
+# --no-renames keeps Git from emitting type 2 records, which arrive as a pair of
+# type 1 records instead. These cases only pin the [12] patterns against a flag
+# change; the reachable rename path is the type 1 pair below.
+assert_status '+' '' '' 'type 2 record staged in column 3' \
   $'2 R. N... 100644 100644 100644 '"$_hash1 $_hash2 R100 renamed\toriginal"
-assert_status '*' '' '' 'renamed unstaged record' \
+assert_status '*' '' '' 'type 2 record unstaged in column 4' \
   $'2 .M N... 100644 100644 100644 '"$_hash1 $_hash2 R100 renamed\toriginal"
+assert_status '+' '' '' 'rename split into added and deleted records' \
+  $'1 A. N... 000000 100644 100644 '"$_hash1 $_hash2"$' renamed\n1 D. N... 100644 000000 000000 '"$_hash2 $_hash1 original"
 assert_status '?' '' '' 'untracked record' '? untracked'
 assert_status '' '#' '' 'unmerged record' \
   "u UU N... 100644 100644 100644 100644 $_hash1 $_hash2 $_hash3 conflicted"

@@ -46,36 +46,29 @@ add-zsh-hook -d precmd _shsh_precmd
 add-zsh-hook -d preexec _shsh_preexec
 
 typeset -a _baseline_times=() _candidate_times=()
-typeset _baseline_output _candidate_output _output
+typeset _baseline_output _candidate_output
 
 repeat 5; do
   _benchmark_baseline_status 1 "$_fixture_root" >/dev/null
   _benchmark_candidate_status 1 "$_fixture_root" >/dev/null
 done
 
-# Reports the elapsed microseconds in REPLY and the report itself in _output.
-# Samples stay integers because the (on) sort flag compares each run of digits
-# on its own, which misorders decimals such as 5.4 against 5.18.
-_benchmark_measure() {
-  local variant=$1
-  local -F started=$EPOCHREALTIME
-  local -i elapsed
-
-  _output=$("_benchmark_${variant}_status" 1 "$_fixture_root")
-  elapsed=$(( (EPOCHREALTIME - started) * 1000000 ))
-  REPLY=$elapsed
-}
-
+# Samples stay integer microseconds because the (on) sort flag compares each
+# run of digits on its own, which misorders decimals such as 5.4 against 5.18.
 _benchmark_record() {
   local variant=$1
+  local -F started=$EPOCHREALTIME
+  local output
+  local -i elapsed
 
-  _benchmark_measure "$variant"
+  output=$("_benchmark_${variant}_status" 1 "$_fixture_root")
+  elapsed=$(( (EPOCHREALTIME - started) * 1000000 ))
   if [[ $variant == baseline ]]; then
-    _baseline_times+=($REPLY)
-    _baseline_output=$_output
+    _baseline_times+=($elapsed)
+    _baseline_output=$output
   else
-    _candidate_times+=($REPLY)
-    _candidate_output=$_output
+    _candidate_times+=($elapsed)
+    _candidate_output=$output
   fi
 }
 
@@ -100,16 +93,14 @@ _benchmark_summary() {
   local label=$1
   shift
   local -a samples=("$@") sorted
-  local -i count=${#samples} p95_index median mean
+  local -i count=${#samples} p95_index median mean low high
 
   p95_index=$(( (count * 95 + 99) / 100 ))
+  low=$(( (count + 1) / 2 ))
+  high=$(( (count + 2) / 2 ))
   sorted=(${(on)samples})
   mean=$(( (${(j:+:)samples}) / count ))
-  if (( count % 2 )); then
-    median=$sorted[$(( (count + 1) / 2 ))]
-  else
-    median=$(( (sorted[count / 2] + sorted[count / 2 + 1]) / 2 ))
-  fi
+  median=$(( (sorted[low] + sorted[high]) / 2 ))
   printf '%-9s n=%d median=%.3f mean=%.3f min=%.3f p95=%.3f max=%.3f ms\n' \
     "$label" $count $(( median / 1000. )) $(( mean / 1000. )) \
     $(( sorted[1] / 1000. )) $(( sorted[p95_index] / 1000. )) \

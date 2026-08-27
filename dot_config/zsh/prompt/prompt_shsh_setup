@@ -217,9 +217,12 @@ _shsh_async_git_status() {
     status_lines=("${(f)output}")
 
     # Array pattern searches run in Zsh itself instead of interpreting every
-    # porcelain record in the shell language.
-    (( ${status_lines[(I)[12] ?[^.]*]} )) && dirty+='*'
-    (( ${status_lines[(I)[12] [^.]*]} )) && dirty+='+'
+    # porcelain record in the shell language. Columns 3 and 4 hold the XY pair,
+    # X staged and Y unstaged. The report is ordered stash header, 1/2, u, then
+    # ? records, so each lookup uses the flag that scans from its own end: (r)
+    # walks forward from the head, (I) backward from the tail.
+    [[ -n ${status_lines[(r)[12] ?[^.]*]-} ]] && dirty+='*'
+    [[ -n ${status_lines[(r)[12] [^.]*]-} ]] && dirty+='+'
     (( ${status_lines[(I)\? *]} )) && dirty+='?'
     (( ${status_lines[(I)u *]} )) && conflict_marker='#'
     [[ -n ${status_lines[(r)# stash *]-} ]] && stash_marker='≡'
