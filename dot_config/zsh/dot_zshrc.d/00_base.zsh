@@ -19,6 +19,25 @@ if (( $+commands[mise] )); then
   unset _mise_completion_dir _mise_completion_file _mise_completion_tmp
 fi
 
+# Hister
+if (( $+commands[hister] )); then
+  _hister_completion_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions"
+  _hister_completion_file="$_hister_completion_dir/_hister"
+
+  if [[ ! -s "$_hister_completion_file" || "$commands[hister]" -nt "$_hister_completion_file" ]]; then
+    command mkdir -p "$_hister_completion_dir"
+    _hister_completion_tmp="${_hister_completion_file}.$$.tmp"
+    if command hister completion zsh >| "$_hister_completion_tmp"; then
+      command mv -f -- "$_hister_completion_tmp" "$_hister_completion_file"
+    else
+      command rm -f -- "$_hister_completion_tmp"
+    fi
+  fi
+
+  fpath=("$_hister_completion_dir" $fpath)
+  unset _hister_completion_dir _hister_completion_file _hister_completion_tmp
+fi
+
 # Builtin commands
 # macOS /bin/ls has no --version, so avoid spawning it only to confirm that.
 if ! [[ "$OSTYPE" == darwin* && "$commands[ls]" == /bin/ls ]] &&
