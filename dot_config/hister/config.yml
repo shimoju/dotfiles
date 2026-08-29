@@ -1,0 +1,5 @@
+app:
+  directory: ~/.local/share/hister
+
+server:
+  address: 127.0.0.1:4433

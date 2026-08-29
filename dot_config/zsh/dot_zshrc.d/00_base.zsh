@@ -1,23 +1,34 @@
+_zsh_completion_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions"
+
+_cache_zsh_completion() {
+  local _completion_command=$1
+  local _completion_file="$_zsh_completion_dir/_$_completion_command"
+  local _completion_tmp="${_completion_file}.$$.tmp"
+
+  if [[ ! -s "$_completion_file" || "$commands[$_completion_command]" -nt "$_completion_file" ]]; then
+    command mkdir -p "$_zsh_completion_dir"
+    if command "$_completion_command" completion zsh >| "$_completion_tmp"; then
+      command mv -f -- "$_completion_tmp" "$_completion_file"
+    else
+      command rm -f -- "$_completion_tmp"
+    fi
+  fi
+}
+
 # mise
 if (( $+commands[mise] )); then
   eval "$(mise activate zsh)"
-
-  _mise_completion_dir="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions"
-  _mise_completion_file="$_mise_completion_dir/_mise"
-
-  if [[ ! -s "$_mise_completion_file" || "$commands[mise]" -nt "$_mise_completion_file" ]]; then
-    command mkdir -p "$_mise_completion_dir"
-    _mise_completion_tmp="${_mise_completion_file}.$$.tmp"
-    if command mise completion zsh >| "$_mise_completion_tmp"; then
-      command mv -f -- "$_mise_completion_tmp" "$_mise_completion_file"
-    else
-      command rm -f -- "$_mise_completion_tmp"
-    fi
-  fi
-
-  fpath=("$_mise_completion_dir" $fpath)
-  unset _mise_completion_dir _mise_completion_file _mise_completion_tmp
+  _cache_zsh_completion mise
 fi
+
+# Hister
+if (( $+commands[hister] )); then
+  _cache_zsh_completion hister
+fi
+
+fpath=("$_zsh_completion_dir" $fpath)
+unfunction _cache_zsh_completion
+unset _zsh_completion_dir
 
 # Builtin commands
 # macOS /bin/ls has no --version, so avoid spawning it only to confirm that.

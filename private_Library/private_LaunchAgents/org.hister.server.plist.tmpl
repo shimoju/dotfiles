@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>org.hister.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{ .chezmoi.homeDir }}/.local/bin/mise</string>
+    <string>-C</string>
+    <string>{{ .chezmoi.homeDir }}</string>
+    <string>exec</string>
+    <string>--</string>
+    <string>hister</string>
+    <string>listen</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>XDG_CONFIG_HOME</key>
+    <string>{{ .chezmoi.homeDir }}/.config</string>
+  </dict>
+  <key>KeepAlive</key>
+  <dict>
+    <key>Crashed</key>
+    <true/>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>{{ .chezmoi.homeDir }}/Library/Logs/hister.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{ .chezmoi.homeDir }}/Library/Logs/hister.error.log</string>
+</dict>
+</plist>

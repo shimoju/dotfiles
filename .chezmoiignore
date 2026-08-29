@@ -3,3 +3,6 @@ AGENTS.md
 CLAUDE.md
 docs/
 tests/
+{{- if ne .chezmoi.os "darwin" }}
+Library/LaunchAgents/org.hister.server.plist
+{{- end }}
