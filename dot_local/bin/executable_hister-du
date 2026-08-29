@@ -1,0 +1,44 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if (( $# != 0 )); then
+  echo 'Usage: hister-du' >&2
+  exit 2
+fi
+
+os="$(uname -s)"
+if [[ -n "${HISTER_DATA_DIR:-}" ]]; then
+  data_dir="$HISTER_DATA_DIR"
+elif [[ "$os" == "Darwin" ]]; then
+  data_dir="$HOME/Library/Application Support/hister"
+elif [[ -n "${XDG_STATE_HOME:-}" ]]; then
+  data_dir="$XDG_STATE_HOME/hister"
+elif [[ -n "${XDG_DATA_HOME:-}" ]]; then
+  data_dir="$XDG_DATA_HOME/hister"
+else
+  data_dir="$HOME/.config/hister"
+fi
+
+printf 'Hister data: %s\n' "$data_dir"
+if [[ -d "$data_dir" ]]; then
+  du -sh "$data_dir"
+  shopt -s nullglob dotglob
+  entries=("$data_dir"/*)
+  shopt -u nullglob dotglob
+  if (( ${#entries[@]} > 0 )); then
+    du -sh "${entries[@]}" 2>/dev/null || true
+  fi
+else
+  echo '  not created'
+fi
+
+if [[ "$os" == "Darwin" ]]; then
+  for log in \
+    "$HOME/Library/Logs/hister.log" \
+    "$HOME/Library/Logs/hister.error.log"; do
+    if [[ -f "$log" ]]; then
+      du -h "$log"
+    fi
+  done
+fi
