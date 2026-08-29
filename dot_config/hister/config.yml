@@ -1,5 +1,6 @@
 app:
   directory: ~/.local/share/hister
+  log_level: warning
 
 server:
   address: 127.0.0.1:4433

@@ -23,11 +23,8 @@ else
 fi
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  for log in \
-    "$HOME/Library/Logs/hister.log" \
-    "$HOME/Library/Logs/hister.error.log"; do
-    if [[ -f "$log" ]]; then
-      du -h "$log"
-    fi
-  done
+  log="$HOME/Library/Logs/hister.log"
+  if [[ -f "$log" ]]; then
+    du -h "$log"
+  fi
 fi
