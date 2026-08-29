@@ -1,0 +1,102 @@
+#!/bin/bash
+
+set -euo pipefail
+
+hister_data_dir() {
+  if [[ -n "${HISTER_DATA_DIR:-}" ]]; then
+    printf '%s\n' "$HISTER_DATA_DIR"
+  elif [[ "$(uname -s)" == "Darwin" ]]; then
+    printf '%s\n' "$HOME/Library/Application Support/hister"
+  elif [[ -n "${XDG_STATE_HOME:-}" ]]; then
+    printf '%s\n' "$XDG_STATE_HOME/hister"
+  elif [[ -n "${XDG_DATA_HOME:-}" ]]; then
+    printf '%s\n' "$XDG_DATA_HOME/hister"
+  else
+    printf '%s\n' "$HOME/.config/hister"
+  fi
+}
+
+hister_show_usage() {
+  local data_dir
+  local -a entries
+  local -a logs
+
+  data_dir="$(hister_data_dir)"
+  printf 'Hister data: %s\n' "$data_dir"
+  if [[ -d "$data_dir" ]]; then
+    du -sh "$data_dir"
+    shopt -s nullglob dotglob
+    entries=("$data_dir"/*)
+    shopt -u nullglob dotglob
+    if (( ${#entries[@]} > 0 )); then
+      du -sh "${entries[@]}" 2>/dev/null || true
+    fi
+  else
+    echo '  not created'
+  fi
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    logs=(
+      "$HOME/Library/Logs/hister.log"
+      "$HOME/Library/Logs/hister.error.log"
+    )
+    for log in "${logs[@]}"; do
+      if [[ -f "$log" ]]; then
+        du -h "$log"
+      fi
+    done
+  fi
+}
+
+hister_confirm() {
+  local answer
+  local prompt="$1"
+  local confirmation="${2:-}"
+
+  if [[ "$confirmation" == '--yes' ]]; then
+    return
+  fi
+  if [[ ! -t 0 ]]; then
+    echo 'Confirmation requires a terminal or --yes' >&2
+    exit 2
+  fi
+  read -r -p "$prompt [y/N] " answer
+  [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]
+}
+
+case "${1:-status}" in
+  status)
+    hister_show_usage
+    ;;
+  cleanup)
+    if [[ ! -x "$HOME/.local/bin/mise" ]]; then
+      echo 'mise is not installed at ~/.local/bin/mise' >&2
+      exit 1
+    fi
+    hister_confirm 'Remove stale local documents and orphaned previews' "${2:-}"
+    echo 'Before cleanup:'
+    hister_show_usage
+    "$HOME/.local/bin/mise" -C "$HOME" exec -- hister cleanup
+    echo 'After cleanup:'
+    hister_show_usage
+    ;;
+  truncate-logs)
+    if [[ "$(uname -s)" != "Darwin" ]]; then
+      echo 'Hister LaunchAgent logs are only available on macOS' >&2
+      exit 1
+    fi
+    hister_confirm 'Truncate Hister LaunchAgent logs' "${2:-}"
+    for log in \
+      "$HOME/Library/Logs/hister.log" \
+      "$HOME/Library/Logs/hister.error.log"; do
+      if [[ -f "$log" ]]; then
+        : > "$log"
+      fi
+    done
+    hister_show_usage
+    ;;
+  *)
+    echo 'Usage: hister-maintenance {status|cleanup|truncate-logs} [--yes]' >&2
+    exit 2
+    ;;
+esac
