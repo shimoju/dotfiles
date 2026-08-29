@@ -1,0 +1,58 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo 'hister-service is only supported on macOS' >&2
+  exit 1
+fi
+
+hister_label='org.hister.server'
+hister_domain="gui/$(id -u)"
+hister_service="$hister_domain/$hister_label"
+hister_plist="$HOME/Library/LaunchAgents/$hister_label.plist"
+
+hister_is_loaded() {
+  launchctl print "$hister_service" >/dev/null 2>&1
+}
+
+hister_bootstrap() {
+  if [[ ! -f "$hister_plist" ]]; then
+    echo "Hister LaunchAgent not found: $hister_plist" >&2
+    exit 1
+  fi
+  launchctl bootstrap "$hister_domain" "$hister_plist"
+}
+
+case "${1:-}" in
+  reload)
+    if hister_is_loaded; then
+      launchctl bootout "$hister_service"
+    fi
+    hister_bootstrap
+    ;;
+  unload)
+    if hister_is_loaded; then
+      launchctl bootout "$hister_service"
+    fi
+    ;;
+  restart)
+    if hister_is_loaded; then
+      launchctl kickstart -k "$hister_service"
+    else
+      hister_bootstrap
+    fi
+    ;;
+  restart-if-loaded)
+    if hister_is_loaded; then
+      launchctl kickstart -k "$hister_service"
+    fi
+    ;;
+  status)
+    launchctl print "$hister_service"
+    ;;
+  *)
+    echo 'Usage: hister-service {reload|unload|restart|restart-if-loaded|status}' >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# mise config: {{ include "dot_config/mise/config.toml" | sha256sum }}
+# LaunchAgent: {{ include "Library/LaunchAgents/org.hister.server.plist.tmpl" | sha256sum }}
+# service helper: {{ include "dot_local/bin/executable_hister-service" | sha256sum }}
+
+"$HOME/.local/bin/mise" -C "$HOME" install github:asciimoo/hister
+
+{{- if eq .chezmoi.os "darwin" }}
+"$HOME/.local/bin/hister-service" reload
+{{- end }}
