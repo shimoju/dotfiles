@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+"$HOME/.local/bin/mise" -C "$HOME" install github:asciimoo/hister
+
+{{- if eq .chezmoi.os "darwin" }}
+"$HOME/.local/bin/hister-service" reload
+{{- end }}

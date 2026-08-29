@@ -1,3 +1,2 @@
 indexer:
-  # Hister 0.17以降では日本語向けインデックスが自動作成される。
   detect_languages: true
