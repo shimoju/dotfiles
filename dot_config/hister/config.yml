@@ -1,2 +1,2 @@
-indexer:
-  detect_languages: true
+app:
+  directory: ~/.local/share/hister
