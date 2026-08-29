@@ -1,0 +1,192 @@
+#!/usr/bin/expect -f
+
+set timeout 8
+log_user 0
+if {[info exists env(PROMPT_BENCH_DEBUG)]} {
+  exp_internal 1
+}
+
+foreach name {
+  PROMPT_BENCH_EVENTS
+  PROMPT_BENCH_TERMINAL_LOG
+  PROMPT_BENCH_SAMPLES
+  PROMPT_BENCH_WARMUPS
+  PROMPT_BENCH_NONREPO
+  PROMPT_BENCH_REPO
+  PROMPT_BENCH_ZDOTDIR
+  PROMPT_BENCH_ZSH
+  PROMPT_BENCH_SHSH_SETUP
+  PROMPT_BENCH_ASYNC_PATH
+  PROMPT_BENCH_PURE_ROOT
+  PROMPT_BENCH_TYPEWRITTEN_ROOT
+  PROMPT_BENCH_P10K_ROOT
+  PROMPT_BENCH_GITSTATUS_CACHE
+  PROMPT_BENCH_XDG_CACHE
+} {
+  if {![info exists env($name)] || $env($name) eq ""} {
+    puts stderr "missing $name"
+    exit 70
+  }
+}
+
+set variants {bare_a bare_b bare_direct shsh pure typewritten p10k}
+if {[info exists env(PROMPT_BENCH_VARIANTS)] && $env(PROMPT_BENCH_VARIANTS) ne ""} {
+  set variants [split $env(PROMPT_BENCH_VARIANTS)]
+}
+set conditions {nonrepo repo}
+set ready_marker "\033\]1337;PROMPT_BENCH_READY\007"
+set status_marker "\033\]1337;PROMPT_BENCH_STATUS\007"
+set input_marker "@"
+set branch_name "prompt-benchmark"
+
+proc elapsed_ms {start end} {
+  if {$end < 0} {
+    return ""
+  }
+  return [format "%.3f" [expr {($end - $start) / 1000.0}]]
+}
+
+proc run_sample {variant condition iteration measured} {
+  global env timeout ready_marker status_marker input_marker branch_name
+
+  if {$condition eq "repo"} {
+    set workdir $env(PROMPT_BENCH_REPO)
+  } else {
+    set workdir $env(PROMPT_BENCH_NONREPO)
+  }
+
+  set run_label "$variant/$condition/$iteration"
+  if {$measured} {
+    send_log "\n=== $run_label ===\n"
+  }
+
+  stty rows 24 columns 80
+  set start [clock microseconds]
+  spawn -noecho env -i \
+    HOME=$env(HOME) \
+    PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+    LANG=en_US.UTF-8 \
+    TERM=xterm-256color \
+    ZDOTDIR=$env(PROMPT_BENCH_ZDOTDIR) \
+    XDG_CACHE_HOME=$env(PROMPT_BENCH_XDG_CACHE) \
+    GIT_CONFIG_GLOBAL=/dev/null \
+    GIT_CONFIG_NOSYSTEM=1 \
+    GITSTATUS_CACHE_DIR=$env(PROMPT_BENCH_GITSTATUS_CACHE) \
+    PROMPT_BENCH_VARIANT=$variant \
+    PROMPT_BENCH_WORKDIR=$workdir \
+    PROMPT_BENCH_SHSH_SETUP=$env(PROMPT_BENCH_SHSH_SETUP) \
+    PROMPT_BENCH_ASYNC_PATH=$env(PROMPT_BENCH_ASYNC_PATH) \
+    PROMPT_BENCH_PURE_ROOT=$env(PROMPT_BENCH_PURE_ROOT) \
+    PROMPT_BENCH_TYPEWRITTEN_ROOT=$env(PROMPT_BENCH_TYPEWRITTEN_ROOT) \
+    PROMPT_BENCH_P10K_ROOT=$env(PROMPT_BENCH_P10K_ROOT) \
+    $env(PROMPT_BENCH_ZSH) -d -i
+
+  set ready -1
+  set accepted -1
+  set branch -1
+  set status -1
+  set input_sent 0
+  set outcome timeout
+  set done 0
+  set sample_ready_marker $ready_marker
+
+  while {!$done} {
+    expect {
+      -exact $sample_ready_marker {
+        if {$ready < 0} {
+          set ready [clock microseconds]
+          set sample_ready_marker "PROMPT_BENCH_READY_ALREADY_SEEN"
+        }
+        if {!$input_sent} {
+          set input_sent 1
+          send -- $input_marker
+        }
+      }
+      -exact $input_marker {
+        if {$input_sent && $accepted < 0} {
+          set accepted [clock microseconds]
+          send -- "\025"
+        }
+        if {$condition eq "nonrepo" || [string match "bare*" $variant]} {
+          set outcome ok
+          set done 1
+        }
+      }
+      -exact $branch_name {
+        if {$branch < 0} {
+          set branch [clock microseconds]
+          if {$variant eq "p10k"} {
+            set status $branch
+          }
+        }
+        if {$accepted >= 0 && $status >= 0} {
+          set outcome ok
+          set done 1
+        }
+      }
+      -exact $status_marker {
+        if {$status < 0} {
+          set status [clock microseconds]
+        }
+        if {$accepted >= 0 && $branch >= 0} {
+          set outcome ok
+          set done 1
+        }
+      }
+      timeout {
+        set done 1
+      }
+      eof {
+        set outcome eof
+        set done 1
+      }
+    }
+  }
+
+  if {$spawn_id ne ""} {
+    catch {send -- "\025\004"}
+    catch {expect -timeout 1 eof}
+    catch {close}
+    catch {wait}
+  }
+
+  if {$measured} {
+    set startup [elapsed_ms $start $ready]
+    set input [elapsed_ms $start $accepted]
+    set branch_ms [elapsed_ms $start $branch]
+    set status_ms [elapsed_ms $start $status]
+    set events [open $env(PROMPT_BENCH_EVENTS) a]
+    puts $events "$variant\t$condition\t$iteration\t$startup\t$input\t$branch_ms\t$status_ms\t$outcome"
+    close $events
+  } elseif {$outcome ne "ok"} {
+    puts stderr \
+      "warmup failed: $run_label ($outcome, ready=$ready, input=$accepted, branch=$branch, status=$status)"
+    exit 73
+  }
+}
+
+log_file -a $env(PROMPT_BENCH_TERMINAL_LOG)
+
+foreach variant $variants {
+  foreach condition $conditions {
+    for {set i 1} {$i <= $env(PROMPT_BENCH_WARMUPS)} {incr i} {
+      run_sample $variant $condition $i 0
+    }
+  }
+}
+
+for {set i 1} {$i <= $env(PROMPT_BENCH_SAMPLES)} {incr i} {
+  set ordered_variants $variants
+  set ordered_conditions $conditions
+  if {$i % 2 == 0} {
+    set ordered_variants [lreverse $ordered_variants]
+  }
+  if {$i % 4 >= 2} {
+    set ordered_conditions [lreverse $ordered_conditions]
+  }
+  foreach condition $ordered_conditions {
+    foreach variant $ordered_variants {
+      run_sample $variant $condition $i 1
+    }
+  }
+}

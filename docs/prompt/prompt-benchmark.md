@@ -2,18 +2,16 @@
 
 ## 目的
 
-入力可能になるまでの時間と、非同期Git表示が完成するまでの時間を混同せずに測定する。ベンチマークでは次の4時点を分けて記録する。
+入力可能になるまでの時間と、非同期Git表示が完成するまでの時間を分けて測定する。また、次の2種類の初期表示を混同しない。
 
-1. 初期表示: 次の入力記号がterminalへ届くまで
-2. branch表示: branchまたはdetached HEADを描画できるまで
-3. Git状態完了: 詳細statusが表示へ反映されるまで
-4. worker内Git計算: IPCと再描画を除いたworker内のstatus実行時間
+- 初期表示: 起動済みの対話Zshで、コマンド終了から次の入力記号を表示するまで
+- fresh-process startup: 新しい対話Zshをspawnする直前から、最初の入力プロンプトを完全に表示するまで
 
-ユーザー体験に最も強く影響する指標は初期表示である。Git状態完了はbackgroundで消費するCPUとI/Oの評価には必要だが、そのまま体感速度を表すものではない。
+Gitについてはbranch表示と詳細status完了も別に記録する。体感速度には初期表示とfresh-process startupが最も強く影響し、Git状態完了はbackgroundのCPU・I/O負荷を評価する指標となる。
 
 ## 測定用リポジトリ
 
-LLVMのshallow cloneを専用ディレクトリへ作成する。価値のある作業内容を含むリポジトリでは、ベンチマーク用の変更やcleanupを実行しない。
+LLVMのdepth 1 cloneを、価値のある作業内容を含まない専用ディレクトリへ作成する。
 
 ```sh
 _prompt_bench_root="${TMPDIR%/}/prompt-benchmark"
@@ -21,300 +19,164 @@ _prompt_bench_repo="$_prompt_bench_root/llvm-project"
 
 mkdir -p "$_prompt_bench_root"
 git clone --depth=1 https://github.com/llvm/llvm-project.git "$_prompt_bench_repo"
+git -C "$_prompt_bench_repo" branch -m prompt-benchmark
 
 git -C "$_prompt_bench_repo" rev-parse HEAD
 git -C "$_prompt_bench_repo" count-objects -vH
-git -C "$_prompt_bench_repo" rev-list --count HEAD
 du -sh "$_prompt_bench_repo"
 ```
 
-clean条件はclone直後の状態とする。dirty条件では、追跡済みファイルの変更と未追跡ファイルを1件ずつ作る。
+clean条件はclone直後の状態とする。通常dirty条件では追跡済みファイルと未追跡ファイルを1件ずつ変更する。
 
 ```sh
 printf '\n# prompt benchmark\n' >> "$_prompt_bench_repo/README.md"
 : > "$_prompt_bench_repo/.prompt-benchmark-untracked"
-git -C "$_prompt_bench_repo" status --short
 ```
 
-大量dirty条件では、内容を書き換えずに同じporcelain出力を再現できるよう、modeが`100644`の追跡済みファイル5,500件をindex上で`100755`へ変更する。対象はclone直後のcleanな使い捨てリポジトリに限定する。
+大量dirty条件では、modeが`100644`の追跡済みファイル5,500件をindex上で`100755`へ変更する。
 
 ```sh
 git -C "$_prompt_bench_repo" ls-files -s |
   awk '$1 == "100644" { sub(/^[^\t]*\t/, ""); print; if (++n == 5500) exit }' |
   git -C "$_prompt_bench_repo" update-index --chmod=+x --stdin
-
-test "$(git -C "$_prompt_bench_repo" status --porcelain=v2 --no-renames | wc -l)" -eq 5500
 ```
 
-測定後は、この使い捨てcloneだけを元へ戻す。
+測定後は使い捨てcloneだけを復元する。
 
 ```sh
 git -C "$_prompt_bench_repo" restore -- README.md
 rm -- "$_prompt_bench_repo/.prompt-benchmark-untracked"
-```
 
-大量dirty条件は、変更した5,500件がすべて元は`100644`だったことを利用して復元する。
-
-```sh
 git -C "$_prompt_bench_repo" diff --cached --name-only |
   git -C "$_prompt_bench_repo" update-index --chmod=-x --stdin
-test -z "$(git -C "$_prompt_bench_repo" status --porcelain=v2)"
 ```
 
-shallow cloneはindexとworktreeの走査を評価する用途には適しているが、長い履歴を対象とする処理は評価できない。ahead／behindなどの履歴依存処理を変更するときは、full cloneを別のworkloadとして追加する。
+shallow cloneはindexとworktreeの走査用であり、長い履歴を使う処理の評価には適さない。ahead／behindなどを変更するときはfull cloneを別workloadとして追加する。
 
-## 測定ハーネスの要件
+## fresh-process startup
 
-一時的な`ZDOTDIR`とShshに必要な最小限の依存を使い、擬似terminal上で実際の対話Zshを起動する。`_shsh_render`だけを直接測る方法は、ZLE、prompt expansion、worker IPC、再描画を含まないため、microbenchmarkにしか使用しない。
+### 測定方法
 
-ExpectなどのPTY driverを使用する。smoke testと複数回のwarm upを行った後、clean、dirty、大量dirtyを最低30回ずつ測定する。最初の`❯`で次の試行へ進まず、branchとstatusの両callbackが届くまでZLEのevent loopを動かす。
+`tests/prompt/benchmark_startup.zsh`はExpectで実PTYを作り、sampleごとに`env -i /bin/zsh -d -i`を起動する。通常の`.zshrc`やplugin managerは読み込まず、promptのsource、初期化、最初のworker生成は測定に含める。
 
-Shshの関数をwrapして測定eventを追加してよいが、jobの実行順序を変えたり、1つの処理を分割したり、同期経路へ外部コマンドを追加したりしない。空のcallbackを使ってinstrumentation自体のcostも確認する。
+最初のプロンプト末尾へ不可視markerを付け、PTYで受信した直後に1文字送信する。そのechoを確認して`Ctrl-U`で消すことで、ZLEが入力可能になったことも検証する。Gitリポジトリではbranch文字列とstatus callbackのmarkerまで待つ。
 
-ローカルGitの測定中は、`_shsh_maybe_fetch`を成功するno-opへ差し替える。network latencyは安定せず、fetchは別workerで動作するため、専用testへ分離する。この差し替えはproduction optionにせず、測定metadataへ記録する。
+固定revisionの比較対象を用意し、次のように実行する。
 
-## イベントログ
+```sh
+export PROMPT_BENCH_ASYNC_PATH=/path/to/zsh-async/async.zsh
+export PROMPT_BENCH_PURE_ROOT=/path/to/pure
+export PROMPT_BENCH_TYPEWRITTEN_ROOT=/path/to/typewritten
+export PROMPT_BENCH_P10K_ROOT=/path/to/powerlevel10k
+export PROMPT_BENCH_GITSTATUS_CACHE=/path/to/gitstatus-cache
 
-1行に1件、次の形式で記録する。
-
-```text
-EVENT ITERATION TIMESTAMP DETAIL
+zsh tests/prompt/benchmark_startup.zsh \
+  "$_prompt_bench_repo" \
+  "${TMPDIR%/}/shsh-startup-results" \
+  50 5
 ```
 
-時刻には`zsh/datetime`の`EPOCHREALTIME`を使用する。共通loggerは次のようにできる。
+引数はcleanなGitリポジトリ、存在しない出力先、sample数、warm up数である。出力先にはsample単位の`events.tsv`、集計済みの`summary.tsv`、PTY出力の`terminal.tty`が作られる。
 
-```zsh
-zmodload zsh/datetime
+比較対象と非Git／Git条件の順序はsampleごとに反転する。特定対象だけを確認する場合は、空白区切りの`PROMPT_BENCH_VARIANTS`を指定する。
 
-_prompt_bench_log() {
-  local event=$1 detail=${2-}
-  print -r -- "$event $PROMPT_BENCH_ITERATION $EPOCHREALTIME $detail" \
-    >> "$PROMPT_BENCH_LOG"
-}
+```sh
+PROMPT_BENCH_VARIANTS='bare_a shsh' \
+  zsh tests/prompt/benchmark_startup.zsh \
+  "$_prompt_bench_repo" \
+  "${TMPDIR%/}/shsh-startup-smoke" \
+  3 1
 ```
 
-最低限、次を記録する。
+bare Zshは同一実装のA／A測定を含む。`bare_direct`はprecmd hookを使わずmarkerをPROMPTへ直接埋め込み、instrumentationのcostを確認する。filesystem cacheは消去せず、Zsh processだけを毎回新しくする。
 
-| イベント | 記録位置 | 意味 |
-|---|---|---|
-| `START` | 測定コマンドから戻る直前 | 試行の基準時刻 |
-| `RENDER` | 入力記号がPTYへ届いた時点 | 入力可能になった時刻 |
-| `CALLBACK branch` | branch結果の受信時 | branchを表示できる時刻 |
-| `CALLBACK status` | 詳細statusの受信時 | ローカルGit表示の完了時刻 |
-| `WORKER status` | status jobの終了時 | IPCと再描画を除いたGit計算時間 |
+### 結果
 
-試行`i`の対応する時刻または時間を`Sᵢ`、`Rᵢ`、`Bᵢ`、`Gᵢ`、`Wᵢ`とし、次を計算する。
-
-```text
-initial_promptᵢ = Rᵢ - Sᵢ
-branch_visibleᵢ = Bᵢ - Sᵢ
-git_completeᵢ   = Gᵢ - Sᵢ
-worker_gitᵢ     = Wᵢ
-```
-
-各指標のsample数、median、mean、min、p95、maxをms単位で出す。主な比較にはmedianを使い、scheduler由来の外れ値を確認するためp95も併記する。timeoutした試行は欠測とし、timeout値を成功sampleへ混ぜない。
-
-## 再現性のための記録
-
-長期保存する測定では、harness、生event、terminal log、集計値、metadataを同じ場所へ保存する。
-
-```text
-docs/prompt/benchmark-results/YYYY-MM-DD/
-├── metadata.md
-├── harness/
-├── events-clean.log
-├── events-dirty.log
-├── events-many-dirty.log
-├── summary.json
-├── terminal-clean.tty
-├── terminal-dirty.tty
-└── terminal-many-dirty.tty
-```
-
-通常の確認では一時ディレクトリだけでよい。設計判断または性能回帰の根拠として再利用する測定だけをcommitする。
-
-`metadata.md`には最低限次を記録する。
-
-- OS、architecture、terminal、Zsh、Git、`zsh-async`のversion
-- Shshのcommitとworktreeの変更有無
-- リポジトリURL、commit、shallow depth、object数、pack size、worktree size
-- clean／dirty／大量dirty状態の正確な作成方法
-- `core.fsmonitor`、`core.untrackedCache`、関連するglobal／system Git設定
-- warm up回数、測定回数、terminalの縦横、電源状態
-- fetchを無効化または差し替えたか
-- instrumentationによる変更と、その実測cost
-
-revisionを比較する場合はこれらの条件を揃える。cold／warm sample、異なるLLVM commit、異なるdirty状態、異なるcache設定を同じ比較に混ぜない。
-
-## 回帰判定
-
-LLVM workloadでは次の固定基準を使用する。Git cacheを使用しないclean、dirty、大量dirtyのすべてで、入力とbranch表示の基準を満たすことを確認する。
-
-| 指標 | 上限 |
-|---|---:|
-| 初期表示 median | 3 ms |
-| 初期表示 p95 | 5 ms |
-| branch表示 median | 20 ms |
-| 大量dirtyのworker内Git計算 median | 600 ms |
-
-現在値は初期表示medianが約1.8 ms、p95が約2.1 ms、branch表示medianが約12 msである。3／5／20 msは、測定揺らぎと小規模な機能追加を許容しつつ、同期処理や外部processの追加を検出できる余裕に絞った値である。
-
-大量dirtyの現在値は約524 msであり、600 msは約14%の余裕を持つ。Git自体の走査時間に左右されるため通常のstatusより余裕を小さくできないが、大規模なporcelain出力の処理効率が悪化した場合は検出できる。
-
-Git状態完了はリポジトリ、filesystem、Git cacheに支配されるため、固定の絶対上限を設けない。Git処理量を意図的に変えていない修正では、同条件のbefore／afterを比較し、次の場合に原因を調べる。
-
-- Git状態完了またはworker内Git計算のmedianが10%以上悪化した。
-- worker完了からstatus反映までの差が10 msを超えた。
-- 新しいtimeout、古い結果の混入、入力停止、再描画の破損が発生した。
-
-性能確認には対話動作も含める。branchとstatusの更新中に、文字入力、履歴移動、補完、`Ctrl-C`、拡大・縮小方向のresizeを試す。再描画後も編集bufferとcursor位置を保持し、移動前のディレクトリから届いた結果を表示しないことを確認する。
-
-## 現在の比較結果
-
-最新のShshと、比較対象にしたprompt libraryの定常利用時の性能を同じPTY harnessで測定した。Typewrittenは`TYPEWRITTEN_PROMPT_LAYOUT=pure`を指定している。Powerlevel10kはLean設定を基に表示要素を揃え、起動後の`gitstatusd`がリポジトリ状態を保持した状態を測定した。
-
-| 項目 | 値 |
-|---|---|
-| 測定日 | 2026-08-23 |
-| OS | macOS 26.6.2、arm64 |
-| Zsh | Apple Zsh 5.9 |
-| Git | 2.55.0 |
-| 電源 | AC接続 |
-| PTY | `xterm-256color`、80×24 |
-| リポジトリ | `llvm/llvm-project`のdepth 1 clone |
-| リポジトリcommit | `6c206e3` |
-| worktree | 約2.8 GB |
-| pack | 293.55 MiB、191,166 objects |
-| Git cache | `core.fsmonitor`、`core.untrackedCache`ともに未設定 |
-| warm up | shell起動後2.5秒 |
-| 測定回数 | clean／dirty／大量dirty各30回 |
+測定条件はmacOS 26.6.2 arm64、Apple Zsh 5.9、Git 2.55.0、AC接続、`xterm-256color` 80×24である。LLVMはcommit `6c206e3`、191,166 objects、約2.8 GiBで、FSMonitorとuntracked cacheは未設定。各条件で5回warm up後に50回測定し、timeoutはなかった。自動fetchは測定から除外した。
 
 測定対象のrevisionは次のとおり。
 
-- Shsh: `850e443`
+- Shsh: `f4a26ce`
 - zsh-async: `ee1d11b`
 - Pure: `89c9e30`
 - Typewritten: `06f8575`
 - Powerlevel10k: `3308262`
+- gitstatusd: 1.5.4
 
-Shshの自動fetchは成功するno-opへ差し替え、Pureは`PURE_GIT_PULL=0`とした。network処理はどの測定にも含めていない。
+単位はms、値はmedian / p95。
 
-単位はms、値はmedian / p95。取得対象の各指標でsample数は30であり、timeoutと欠測はなかった。
-
-### Clean
-
-| Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+| Prompt | 非Gitで初回表示 | Gitで初回表示 | first branch | first Git status |
 |---|---:|---:|---:|---:|
-| Shsh | 1.803 / 2.001 | 11.575 / 12.794 | 491.994 / 498.566 | 488.917 / 495.114 |
-| Pure | 0.862 / 1.005 | 131.568 / 139.640 | 498.179 / 541.663 | 494.683 / 505.761 |
-| Typewritten Pure | 16.192 / 17.136 | 27.114 / 28.504 | 543.038 / 547.751 | 523.374 / 527.591 |
-| Powerlevel10k Lean | 4.293 / 12.294 | 4.477 / 12.531 | 4.477 / 12.531 | — |
+| bare Zsh | 12.190 / 14.481 | 12.279 / 13.681 | — | — |
+| Shsh | 22.861 / 25.657 | 23.831 / 26.466 | 31.381 / 35.399 | 512.446 / 582.175 |
+| Pure | 26.107 / 28.175 | 26.872 / 29.248 | 57.577 / 63.879 | 552.996 / 593.812 |
+| Typewritten Pure | 46.963 / 52.503 | 96.763 / 149.452 | 162.800 / 185.007 | 735.831 / 786.419 |
+| Powerlevel10k Lean | 34.807 / 39.066 | 45.665 / 50.940 | 584.634 / 616.802 | 584.634 / 616.802 |
 
-### Dirty
+bare Zshに対する初回表示のmedian差は次のとおり。
 
-追跡済みの`README.md`を変更し、未追跡ファイルを1件追加した。
-
-| Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
-|---|---:|---:|---:|---:|
-| Shsh | 1.825 / 2.060 | 11.566 / 12.348 | 492.334 / 511.436 | 489.512 / 508.567 |
-| Pure | 0.914 / 0.970 | 132.434 / 139.788 | 497.453 / 501.641 | 493.828 / 498.211 |
-| Typewritten Pure | 16.160 / 17.612 | 27.514 / 30.125 | 544.688 / 551.120 | 524.715 / 531.097 |
-| Powerlevel10k Lean | 4.077 / 18.435 | 4.283 / 18.608 | 4.283 / 18.608 | — |
-
-### 大量dirty
-
-追跡済みファイル5,500件をindex上で`100644`から`100755`へ変更した。FSMonitorとuntracked cacheは使用していない。
-
-| Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
-|---|---:|---:|---:|---:|
-| Shsh | 1.863 / 2.030 | 11.649 / 12.725 | 527.290 / 538.159 | 524.479 / 533.659 |
-| Pure | 0.854 / 1.014 | 129.077 / 137.523 | 521.510 / 527.759 | 517.599 / 521.704 |
-| Typewritten Pure | 16.041 / 16.460 | 26.952 / 28.160 | 568.070 / 573.033 | 548.295 / 553.657 |
-| Powerlevel10k Lean | 4.906 / 22.712 | 5.075 / 23.169 | 5.075 / 23.169 | — |
-
-### 比較
-
-#### Shsh
-
-- 初期表示は約1.8 msで、回帰基準のmedian 3 ms、p95 5 msを十分に下回った。
-- 毎回新しいGit jobを実行する3実装では、branch表示が約12 msで最も速かった。
-- cleanと通常dirtyのGit状態完了は約0.49秒で、worker完了から表示反映までの差は約3 msだった。
-- 大量dirtyのworker中央値は524.479 msで、600 msの回帰基準を下回った。
-- 大量dirtyのworker中央値はPureより6.880 ms遅いが差は1.3%であり、porcelain v2からconflict、stash、通常dirtyを区別する処理を含めても許容できる。
-
-#### Pure
-
-- 初期表示が最も速く、medianは1 ms未満だった。
-- branch取得には汎用の`vcs_info`を使い、この測定ではjob自体の実行時間が約126 msになった。
-- 同じ`vcs_info`を単独で実行すると約11 msだったため、約130 msという値には、大規模worktreeを走査するstatus jobとの資源競合が含まれると考えられる。
-- 大量dirtyのworker中央値は517.599 msで、標準Gitを毎回実行する3実装の中で最も速かった。
-
-#### Typewritten Pure
-
-- `precmd`でGit設定とrepositoryを同期判定してから描画するため、初期表示は約16 msだった。
-- branch表示は約27 msであり、Shshよりやや遅い。
-- status出力に対して複数の`grep` processと`git stash list`を実行するため、worker時間はcleanで約523 ms、大量dirtyで約548 msと3実装中で最も遅かった。
-
-#### Powerlevel10k Lean
-
-- `gitstatusd`が保持した状態を同じprompt描画で利用するため、branchと詳細statusのmedianは約4〜5 msだった。
-- p95は約13〜23 msと振れたが、medianはworktreeのdirty件数によらず安定していた。
-- 各試行で独立したstatus scanを行わないためworker内Git計算は該当せず、他3実装のworker実行時間とは直接比較できない。
-- daemon起動直後のcold性能もこの測定には含まない。
-
-Shsh、Pure、TypewrittenではGit statusを非同期に実行するため、Git状態完了までの時間は入力開始を妨げない。
-
-最終的に、定常状態のGit表示速度はPowerlevel10kが明確に最速である。Shshはdaemonを持たず標準Gitとzsh-asyncだけを使う構成のまま、Pureに近い初期応答、毎回Git jobを実行する実装で最も早いbranch表示、Pureと1.3%差の大量dirty性能を実現している。追加のdaemonや状態cacheを導入するほどの差ではなく、保守性を優先する現在の設計に性能上の大きな不足は見られない。
-
-## 自動fetchのテスト
-
-fetchのscheduleはローカルlatencyとは別に測定する。約400 msかかる決定的なworker関数を使用し、50 ms間隔でpromptを10回更新する。期待する結果は次のとおり。
-
-- 同じリポジトリでfetch jobが1回だけqueueへ入る。
-- ローカルrefreshがそのjobをcancelしない。
-- jobが1回完了する。
-- 5分のinterval内に2回目をqueueしない。
-- foreground fetchはnetwork workerだけをcancelする。
-
-性能回帰の比較には実remoteを使用しない。非対話の認証失敗を確認するsmoke testでは実remoteを使用してよいが、remote、network条件、rate limitの状態を記録する。
-
-## Gitキャッシュの効果
-
-Shshは常に未追跡ファイルを取得する。prompt独自の除外設定やstale dirty cacheではなく、GitのFSMonitorとuntracked cacheを使ってstatus自体を高速化する設計である。
-
-### Git status
-
-比較と同じclean状態のLLVM cloneで測定した。Shshが実行する次のstatusを基準とし、未追跡だけを`no`へ変えたものと比較した。
-
-```sh
-GIT_OPTIONAL_LOCKS=0 git status \
-  --porcelain=v2 --show-stash --untracked-files=normal --no-renames
-```
-
-cacheごとに通常のstatusでindexを初期化し、組み込みFSMonitor daemonの動作を確認してから、Hyperfineで5回warm up、30回測定した。単位はms、値はmedian / p95。
-
-| Git設定 | 未追跡を含むstatus | 未追跡を除外したstatus |
+| Prompt | 非Git | Git |
 |---|---:|---:|
-| cacheなし | 469.903 / 476.285 | 132.780 / 133.900 |
-| FSMonitorのみ | 365.449 / 369.763 | 28.442 / 28.831 |
-| FSMonitor + untracked cache | 42.545 / 43.022 | 29.160 / 29.487 |
+| Shsh | +10.671 | +11.552 |
+| Pure | +13.917 | +14.593 |
+| Typewritten Pure | +34.773 | +84.484 |
+| Powerlevel10k Lean | +22.617 | +33.386 |
 
-FSMonitorは追跡済みファイルの確認を約29 msまで短縮するが、未追跡ディレクトリの走査は高速化しない。untracked cacheを併用すると、未追跡を含むstatusは469.903 msから42.545 msへ約11倍高速になり、未追跡を除外した場合との差は約13 msまで縮まった。
+bare A／Aのmedian差は0.05 ms未満、marker方式の差は0.1 ms未満だった。実装間の差は測定系のnoiseを上回る。
 
-### Shsh全体
+- Shshは非bare実装で初回表示とbranch表示が最も速く、初回表示から約0.2 ms以内に入力を受け付けた。
+- Shshの約11 msにはtheme setup、`promptinit`、最初のprecmd、zsh-async worker初期化、Kubernetes signature確認、右寄せ描画が含まれる。worker初期化の遅延やtheme規約の迂回は数msの短縮に対して複雑性が増すため採用しない。
+- Pureの初回表示はShshより約3 ms遅く、汎用の`vcs_info`を使うbranch表示は約26 ms遅い。詳細statusは入力を妨げない。
+- TypewrittenはGit設定とrepository rootを同期判定するため、LLVM内の初回表示が遅くp95の振れも大きい。
+- Powerlevel10kはZshごとにgitstatusdを起動し、最初のscanでbranchとstatusを同時に得る。起動済みdaemonが状態を保持した定常測定とは性質が異なる。
 
-FSMonitorとuntracked cacheを有効にしたまま、同じPTY harnessでShshをclean／dirty各30回測定した。単位はms、値はmedian / p95。
+5,500件のdirty fileを追加しても、ShshのGit内初回表示は23.323 / 24.674 ms、branchは30.780 / 32.680 msだった。dirty件数は非同期statusの時間には影響するが、fresh-process startupを支配しない。
 
-| 状態 | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
-|---|---:|---:|---:|---:|
-| Clean | 2.198 / 2.392 | 14.045 / 15.363 | 50.454 / 63.291 | 47.148 / 59.929 |
-| Dirty | 2.192 / 2.528 | 13.797 / 14.882 | 54.379 / 55.753 | 51.094 / 52.437 |
+## 起動済みシェルの参考値
 
-cacheなしのGit状態完了は約489〜496 msだったため、cacheの併用で約50〜54 msまで短縮した。Powerlevel10kの約5 msには及ばないが、入力は約2 ms、branchは約14 msで表示され、詳細statusも非同期で約50 ms後に完成する。組み込みFSMonitorを利用できるローカルfilesystemでは、標準Gitだけでも大規模リポジトリの対話利用に十分な性能と判断できる。
+同じ対話Zsh内で、次のプロンプトを表示する定常利用時の結果である。測定条件は2026-08-23、LLVM `6c206e3`、Git cache未設定、各条件30回。Shshは`850e443`、比較対象はfresh-process startupと同じrevisionを使用した。
 
-この結果はcacheがwarmな定常状態を示す。最初のindex走査、filesystemがFSMonitorを提供しない環境、network filesystemでは同じ性能を期待できない。
+単位はms、値はmedian / p95。
 
-利用前にuntracked cacheの対応を確認し、対象リポジトリへ設定する。
+| 状態 | Prompt | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+|---|---|---:|---:|---:|---:|
+| Clean | Shsh | 1.803 / 2.001 | 11.575 / 12.794 | 491.994 / 498.566 | 488.917 / 495.114 |
+| Clean | Pure | 0.862 / 1.005 | 131.568 / 139.640 | 498.179 / 541.663 | 494.683 / 505.761 |
+| Clean | Typewritten Pure | 16.192 / 17.136 | 27.114 / 28.504 | 543.038 / 547.751 | 523.374 / 527.591 |
+| Clean | Powerlevel10k Lean | 4.293 / 12.294 | 4.477 / 12.531 | 4.477 / 12.531 | — |
+| Dirty | Shsh | 1.825 / 2.060 | 11.566 / 12.348 | 492.334 / 511.436 | 489.512 / 508.567 |
+| Dirty | Pure | 0.914 / 0.970 | 132.434 / 139.788 | 497.453 / 501.641 | 493.828 / 498.211 |
+| Dirty | Typewritten Pure | 16.160 / 17.612 | 27.514 / 30.125 | 544.688 / 551.120 | 524.715 / 531.097 |
+| Dirty | Powerlevel10k Lean | 4.077 / 18.435 | 4.283 / 18.608 | 4.283 / 18.608 | — |
+| 5,500 dirty | Shsh | 1.863 / 2.030 | 11.649 / 12.725 | 527.290 / 538.159 | 524.479 / 533.659 |
+| 5,500 dirty | Pure | 0.854 / 1.014 | 129.077 / 137.523 | 521.510 / 527.759 | 517.599 / 521.704 |
+| 5,500 dirty | Typewritten Pure | 16.041 / 16.460 | 26.952 / 28.160 | 568.070 / 573.033 | 548.295 / 553.657 |
+| 5,500 dirty | Powerlevel10k Lean | 4.906 / 22.712 | 5.075 / 23.169 | 5.075 / 23.169 | — |
+
+Powerlevel10kは状態を保持するgitstatusdにより定常Git表示が最速である。Shshは標準Gitとzsh-asyncだけを使い、約1.8 msで入力を返し、branchを約12 msで先行表示する。詳細statusは約0.5秒かかるが入力を妨げない。
+
+## 回帰基準
+
+Git cache未設定のLLVMで次を上限とする。
+
+| 対象 | 指標 | 上限 |
+|---|---|---:|
+| 起動済みシェル | 初期表示 median | 3 ms |
+| 起動済みシェル | 初期表示 p95 | 5 ms |
+| 起動済みシェル | branch表示 median | 20 ms |
+| 起動済みシェル | 大量dirtyのworker内Git計算 median | 600 ms |
+| fresh process | 初回表示 median | 30 ms |
+| fresh process | 初回表示 p95 | 35 ms |
+| fresh process | 入力受付 median | 30 ms |
+| fresh process | first branch median | 40 ms |
+
+Git状態完了はfilesystemとGit cacheに支配されるため固定上限を設けない。Git処理量を変えていない修正でmedianが10%以上悪化した場合、またはworker完了から表示反映までが10 msを超えた場合は原因を調べる。bare A／Aのmedian差が0.5 msを超える場合は、Shshより先に測定環境を確認する。
+
+性能に関わる変更では文字入力、履歴移動、補完、`Ctrl-C`、directory移動、連続resizeも確認する。非同期再描画後もbufferとcursorを維持し、移動前の結果を表示しないことを条件とする。
+
+## Gitキャッシュの参考値
+
+Shshは未追跡ファイルを常に取得し、独自のslow dirty cacheを持たない。大規模リポジトリではGit標準のFSMonitorとuntracked cacheを使用する。
 
 ```sh
 git -C "$_prompt_bench_repo" update-index --test-untracked-cache
@@ -323,14 +185,29 @@ git -C "$_prompt_bench_repo" config --local core.untrackedCache true
 git -C "$_prompt_bench_repo" status --short
 ```
 
-ベンチマークでは使い捨てcloneだけに設定する。測定後は設定とindex extensionを戻し、組み込みFSMonitor daemonを停止する。
+同じclean LLVMで5回warm up後に30回測定した結果。単位はms、値はmedian / p95。
 
-## Porcelain解析のmicrobenchmark
+| Git設定 | 未追跡を含むstatus | 未追跡を除外したstatus |
+|---|---:|---:|
+| cacheなし | 469.903 / 476.285 | 132.780 / 133.900 |
+| FSMonitorのみ | 365.449 / 369.763 | 28.442 / 28.831 |
+| FSMonitor + untracked cache | 42.545 / 43.022 | 29.160 / 29.487 |
 
-`_shsh_async_git_status`の解析方法を変更するときは、PTY harnessの前に`tests/prompt/benchmark_status.zsh`で関数単体を比較する。baseline revisionと作業treeの実装を同じ一時リポジトリへ交互に適用し、両者の出力が一致することを確認しながら測定する。
+FSMonitorとuntracked cacheを併用したShsh全体は次の結果になった。
+
+| 状態 | 初期表示 | branch表示 | Git状態完了 | worker内Git計算 |
+|---|---:|---:|---:|---:|
+| Clean | 2.198 / 2.392 | 14.045 / 15.363 | 50.454 / 63.291 | 47.148 / 59.929 |
+| Dirty | 2.192 / 2.528 | 13.797 / 14.882 | 54.379 / 55.753 | 51.094 / 52.437 |
+
+cacheがwarmなローカルfilesystemでは、標準Gitでも詳細statusを約50 msで表示できる。最初のindex走査やnetwork filesystemでは同じ性能を期待できない。
+
+## 個別処理の測定
+
+porcelain解析を変更するときは、PTY測定の前に関数単体を比較する。
 
 ```sh
 zsh tests/prompt/benchmark_status.zsh <baseline-ref> <サンプル数> <record数>
 ```
 
-`git status`のfork込みの値なので、解析部分だけの差は総時間の一部として現れる。順序効果を避けるため試行ごとにbaselineとcandidateの実行順を入れ替え、sortを誤らせないようsampleは整数microsecondで保持する。
+自動fetchはnetwork latencyを含めず、決定的なworker関数で頻度制限とworker分離を確認する。同じリポジトリで5分以内に1回だけqueueされ、ローカルrefreshではcancelされず、foreground fetchだけがnetwork workerをcancelすることを条件とする。
