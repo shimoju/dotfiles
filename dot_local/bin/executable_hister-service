@@ -21,7 +21,18 @@ hister_bootstrap() {
     echo "Hister LaunchAgent not found: $hister_plist" >&2
     exit 1
   fi
-  launchctl bootstrap "$hister_domain" "$hister_plist"
+
+  local attempt
+  for attempt in 1 2 3; do
+    if launchctl bootstrap "$hister_domain" "$hister_plist"; then
+      return
+    fi
+    # launchd may still be removing the job immediately after bootout.
+    if (( attempt < 3 )); then
+      sleep 1
+    fi
+  done
+  return 1
 }
 
 case "${1:-}" in

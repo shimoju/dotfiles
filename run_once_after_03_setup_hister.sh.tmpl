@@ -7,3 +7,15 @@ set -euo pipefail
 {{- if eq .chezmoi.os "darwin" }}
 "$HOME/.local/bin/hister-service" reload
 {{- end }}
+
+hister_mcp_url='http://127.0.0.1:4433/mcp'
+
+if [[ -x "$HOME/.local/bin/codex" ]] &&
+  ! "$HOME/.local/bin/codex" mcp get hister >/dev/null 2>&1; then
+  "$HOME/.local/bin/codex" mcp add hister --url "$hister_mcp_url"
+fi
+
+if [[ -x "$HOME/.local/bin/claude" ]] &&
+  ! "$HOME/.local/bin/claude" mcp get hister >/dev/null 2>&1; then
+  "$HOME/.local/bin/claude" mcp add --transport http --scope user hister "$hister_mcp_url"
+fi
