@@ -1,0 +1,6 @@
+.config/hister/config.yml
+.local/bin/hister-du
+.local/bin/hister-service
+{{- if eq .chezmoi.os "darwin" }}
+Library/LaunchAgents/org.hister.server.plist
+{{- end }}

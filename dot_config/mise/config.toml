@@ -1,6 +1,5 @@
 [tools]
 go = "latest"
-"github:asciimoo/hister" = { version = "latest", bin = "hister" }
 node = "lts"
 "npm:@vtsls/language-server" = "latest"
 "npm:chrome-devtools-mcp" = "latest"

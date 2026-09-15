@@ -4,11 +4,7 @@ update() {
 
   if (( $+commands[mise] )); then
     mise self-update -y
-    if mise -C "$HOME" upgrade; then
-      if [[ "$OSTYPE" == darwin* ]] && (( $+commands[hister-service] )); then
-        hister-service restart-if-loaded
-      fi
-    fi
+    mise -C "$HOME" upgrade
   fi
 
   antidote update

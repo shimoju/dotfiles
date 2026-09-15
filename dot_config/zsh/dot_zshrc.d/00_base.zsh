@@ -21,11 +21,6 @@ if (( $+commands[mise] )); then
   _cache_zsh_completion mise
 fi
 
-# Hister
-if (( $+commands[hister] )); then
-  _cache_zsh_completion hister
-fi
-
 fpath=("$_zsh_completion_dir" $fpath)
 unfunction _cache_zsh_completion
 unset _zsh_completion_dir
