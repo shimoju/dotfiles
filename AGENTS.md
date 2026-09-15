@@ -9,6 +9,7 @@
 ## Repository layout
 
 - Follow chezmoi naming: `dot_*`, `private_*`, `symlink_*`, and `run_once_*` map to target state.
+- When deleting an applied source-state file, add its target path to `.chezmoiremove`. Skip this if the file has never been applied.
 - Keep repository-only files such as `README.md`, `AGENTS.md`, and `CLAUDE.md` in `.chezmoiignore`.
 - Manage Homebrew packages in `dot_homebrew/Brewfile` and development runtimes in `dot_config/mise/config.toml`.
 - External resources declared in `.chezmoiexternal.toml` are managed by chezmoi; do not edit checked-out copies directly.
