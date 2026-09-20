@@ -3,6 +3,7 @@ go = "latest"
 node = "lts"
 "npm:@vtsls/language-server" = "latest"
 "npm:chrome-devtools-mcp" = "latest"
+"npm:lighthouse" = "latest"
 "npm:skills" = "latest"
 "github:microsoft/vscode-js-debug" = { version = "latest", asset_pattern = "js-debug-dap-v*.tar.gz" }
 pnpm = "latest"
